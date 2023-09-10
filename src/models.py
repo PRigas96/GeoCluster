@@ -65,7 +65,9 @@ class LVGEBM(nn.Module):
         y = self.decoder(z)
         self.z_l = y
         # make y fuzzy
-        y = y + torch.randn(y.shape)* 1
+        y_std = torch.randn(y.shape)* 1
+        y_std = y_std.to(y.device)
+        y = y + y_std
         self.z_fuzzy = y
         # project y_hat to space of y
         y_hat = self.projector(y.T).T
