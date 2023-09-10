@@ -4,6 +4,31 @@ from torch.nn.functional import one_hot
 from torch.distributions import Dirichlet
 
 class LVGEBM(nn.Module):
+    """
+        Latent Variable Generative Energy Based Model
+
+        Parameters:
+            n_centroids: number of centroids
+            output_dim: output dimension
+            latent_size: size of the latent space
+            
+        Args:
+            z: latent space
+            decoder: decoder
+            projector: projector
+            z_l: latent space without noise
+            z_fuzzy: latent space with noise
+            c: projected latent space
+            c_fuzzy: projected latent space with noise
+            
+        Returns:
+            forward: projected latent space
+            sample_z: sample latent space
+            col_one_hot: one hot encoding
+            get_z: get latent space
+        TODO: get pump to work in module 
+
+    """
     def __init__(self, n_centroids, output_dim, latent_size=400):
         super(LVGEBM, self).__init__()
         self.n_centroids = n_centroids

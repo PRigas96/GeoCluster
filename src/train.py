@@ -10,7 +10,38 @@ def trainTeacher(model
                     , beta = 10
                     , f_clk = 2
                     , scale = 1e-2
-                    , bound_for_saving = 6000):
+                    , bound_for_saving = 6000
+):
+    """
+        Train the teacher model
+
+        Parameters:
+            model: model to be trained
+            optimizer: optimizer to be used
+            epochs: number of epochs
+            times: number of times to print
+            device: device to be used
+            train_data: data to be trained on
+            alpha: regularizer for projection module
+            beta: regularizer for latent space
+            f_clk: frequency of the clock
+            scale: scale of the noise
+            bound_for_saving: bound for saving the data
+            
+        Returns:
+            best_model: best model
+            best_outputs: best outputs
+            best_z: best latent
+            best_lat: best latent space
+            best_epoch: best epoch
+            p_p: saved outputs
+            p_c: saved costs
+            reg_proj_array: saved projection regularizers
+            reg_latent_array: saved latent regularizers
+            memory: saved memory
+            cost_array: saved costs
+            
+    """
     print("Training Teacher Model")
     rem = []
     rem.append(torch.tensor(0.0))
