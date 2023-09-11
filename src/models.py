@@ -99,3 +99,37 @@ class LVGEBM(nn.Module):
         self.c = y_hat
 
         return y_hat
+
+class Voronoi(nn.Module):
+    """
+        Voronoi Energy Based Model
+        
+        Parameters:
+            n_centroids: number of centroids
+            input_dim: input dimension
+            output_dim: output dimension
+
+        Args:
+            predictor: predictor
+
+        Returns:
+            forward: predicted energy
+    """
+    def __init__(self, n_centroids, input_dim, output_dim):
+        super(Voronoi, self).__init__()
+        self.n_centroids = n_centroids
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        # inputs are datapoints and outputs are energies
+        self.predictor = nn.Sequential(
+            nn.Linear(input_dim, 100),
+            nn.ReLU(),
+            nn.Linear(100, 100),
+            nn.ReLU(),
+            nn.Linear(100, n_centroids)
+
+        )
+
+    def forward(self, x):
+        x = self.predictor(x)
+        return x
