@@ -34,6 +34,8 @@ def RegLatent(latent):
             
         Returns:
             reg_cost (float): regularization cost
+
+        #TODO check if regularization can be written in a more elegant way
     """
     kld = 0
     for i in range(latent.shape[1]):
@@ -56,15 +58,15 @@ def loss_functional(y_hat, y_target, model):
         Returns:
             loss (float): loss functional
     """
-    n_centroids = y_hat.shape[0]
-    n_data = y_target.shape[0]
-    size = (n_data, n_centroids)
-    loss = torch.zeros(size)
+    n_centroids = y_hat.shape[0] # number of centroids
+    n_data = y_target.shape[0] # number of data
+    size = (n_data, n_centroids) # size of the loss matrix
+    loss = torch.zeros(size) # initialize loss matrix
     for i in range(n_data):
         for j in range(n_centroids):
             # get square
-            square = y_target[i]
+            square = y_target[i] # get square
             #square = torch.tensor(square)
             #y_hat[j] = y_hat[j].clone().detach().requires_grad_(True)
-            loss[i, j], _, _ = Linf(square, y_hat[j])
+            loss[i, j], _, _ = Linf(square, y_hat[j]) # compute loss
     return loss 
