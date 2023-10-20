@@ -8,7 +8,7 @@ from matplotlib.collections import PatchCollection
 from scipy.signal import butter, filtfilt
 from src.ebmUtils import loss_functional
 
-def plot_data_on_manifold(fig,ax ,data, size=10, limits=[-10, 10, -10, 10]):
+def plot_data_on_manifold(fig,ax ,obj, size=10, limits=[-10, 10, -10, 10]):
     """
         Plot the data points
         
@@ -22,6 +22,8 @@ def plot_data_on_manifold(fig,ax ,data, size=10, limits=[-10, 10, -10, 10]):
         Returns:
             None: Updates the figure, axis
     """
+    data = np.copy(obj)
+    data[:,-1] = np.rad2deg(data[:,-1])
     patches = []
     num_polygons = data.__len__()
 
