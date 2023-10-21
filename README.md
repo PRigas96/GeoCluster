@@ -28,6 +28,36 @@ conda env create -f environment.yml
 source activate GeoCluster
 ```
 
+If your system does not support CUDA, you can install the CPU version of PyTorch by running the following in your terminal:
+
+For linux cpu (yml is produced in windows 11):
+
+```[BASH]
+conda install pytorch torchvision cpuonly -c pytorch
+```
+
+For linux gpu:
+
+```[BASH]
+conda install pytorch torchvision pytorch-cuda=12.1 -c pytorch -c nvidia
+```
+
+For more see: [PyTorch](https://pytorch.org/get-started/locally/)
+
+For numpy:
+
+```[BASH]
+conda install -c conda-forge numpy
+```
+
+For matplotlib:
+
+```[BASH]
+conda install -c conda-forge matplotlib
+```
+
+math and random are also required but they are included in the standard library.
+
 ## Information
 
 You can check the following folders:
