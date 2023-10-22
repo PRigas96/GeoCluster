@@ -28,6 +28,15 @@ conda env create -f environment.yml
 source activate GeoCluster
 ```
 
+or if you are a linux user:
+
+```[BASH]
+git clone https://github.com/PRigas96/GeoCluster
+cd GeoCluster
+conda env create -f environment_linux.yml
+source activate GeoCluster
+```
+
 If your system does not support CUDA, you can install the CPU version of PyTorch by running the following in your terminal:
 
 For linux cpu (yml is produced in windows 11):
