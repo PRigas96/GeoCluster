@@ -1,5 +1,6 @@
 # save here metric for tests
 import numpy as np
+import torch
 from src import geometry as geo
 # define Linf() function for a square and a point
 def Linf(square, point):
@@ -79,3 +80,15 @@ def Linf_(square, q_point):
         if dist < min_dist:
             min_dist = dist
     return min_dist
+
+
+def Linfp(x, y):
+    return torch.max(torch.abs(x-y))
+
+
+def Linf_array(q, c):
+    e = torch.zeros((q.shape[0], c.shape[0]))
+    for i in range(q.shape[0]):
+        for j in range(c.shape[0]):
+            e[i, j] = Linfp(q[i], c[j])
+    return e
