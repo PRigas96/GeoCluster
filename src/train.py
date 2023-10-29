@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from src.ebmUtils import Reg, RegLatent, loss_functional
 def trainTeacher(model
                     , optimizer
@@ -125,3 +126,103 @@ def trainTeacher(model
         "memory": memory,
         "cost_array": cost_array
     }
+
+
+def trainStudent(model,
+                 optimizer,
+                 epochs,
+                 device,
+                 loss_function,
+                 qp,
+                 F_ps):
+    """
+        Train the student model
+
+        Parameters:
+            model: model to be trained
+            optimizer: optimizer to be used
+            epochs: number of epochs
+            device: device to be used
+            loss_function: loss function to be used
+            qp: qp points
+            F_ps: ???
+
+        Returns:
+            best_model: best model
+            best_outputs: best outputs
+            best_z: best latent
+            best_lat: best latent space
+            best_epoch: best epoch
+            p_p: saved outputs
+            p_c: saved costs
+            reg_proj_array: saved projection regularizers
+            reg_latent_array: saved latent regularizers
+            memory: saved memory
+            cost_array: saved costs
+
+    """
+    print("Training Teacher Model")
+    F_l = []
+    z_l = []
+    cost_l = []
+    cost_ll = []
+    qp = torch.tensor(qp).to(device)
+    outputs = torch.zeros(qp.shape[0], model.n_centroids)
+
+    ce = nn.CrossEntropyLoss()
+    acc_l = []
+    l_ce = []
+    es = []
+    best_vor_cost = torch.inf
+    best_vor_model = None
+    for epoch in range(epochs):
+        qp = torch.tensor(qp, dtype=torch.float32).to(device)
+        # get outputs
+        outputs = model(qp)
+        # pass outputs through a hard arg max
+        F, z = outputs.min(1)
+        F_ps_m, z_ps_m = F_ps.min(1)
+        # send to device
+        F_ps_m = F_ps_m.to(device)
+        z_ps_m = z_ps_m.to(device)
+        # make values of z_ps_m to be round to nearest integer
+        r_z = torch.round(z_ps_m)
+        # get loss
+        alpha = 100
+        beta = 1000
+        z = z.float()
+        z_ = outputs
+        # make z_ float
+        z_ = z_.float()
+        z_cost = ce(z_, z_ps_m)
+        F_cost = loss_function(F, F_ps_m)
+        # get z_cost where we only penalize the wrong z and not its distance
+        # z_cost = penalty(z, r_z)
+        # F_l.append(F_cost.item())
+        z_l.append(z_cost)
+        # cost = alpha*F_cost + beta*z_cost
+        cost = 100 * z_cost
+        cost_l.append(cost.item())
+        # backward
+        optimizer.zero_grad()
+        cost.backward()
+        optimizer.step()
+        if cost < best_vor_cost:
+            best_vor_cost = cost
+            best_vor_model = model
+        if epoch % 2000 == 0:
+            # lets check acc
+            acc = 0
+            for i in range(qp.shape[0]):
+                F_e, z_e = outputs[i].max(0)
+                if z_e == z_ps_m[i]:
+                    acc += 1
+            acc_l.append(acc / qp.shape[0])
+            es.append(epoch)
+            cost_ll.append(cost.item())
+
+            if epoch % 200 == 0:
+                print("Acc: ", acc / qp.shape[0])
+                print("Epoch: ", epoch, "Cost: ", cost.item())
+
+    return best_vor_model, cost_ll, acc_l, es
