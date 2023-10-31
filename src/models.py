@@ -264,13 +264,12 @@ class Voronoi(nn.Module):
                 qp: qp points
                 F_ps: ???
         """
-        print("Training Teacher Model")
+        print("Training Student Model")
         F_l = []
         z_l = []
         cost_l = []
         cost_ll = []
         qp = torch.tensor(qp).to(device)
-        outputs = torch.zeros(qp.shape[0], self.n_centroids)
 
         ce = nn.CrossEntropyLoss()
         acc_l = []
@@ -322,10 +321,8 @@ class Voronoi(nn.Module):
                 acc_l.append(acc / qp.shape[0])
                 es.append(epoch)
                 cost_ll.append(cost.item())
-
-                if epoch % 200 == 0:
-                    print("Acc: ", acc / qp.shape[0])
-                    print("Epoch: ", epoch, "Cost: ", cost.item())
+                print("Acc: ", acc / qp.shape[0])
+                print("Epoch: ", epoch, "Cost: ", cost.item())
 
         # Store the training variables to the model.
         self.best_vor_model_state = best_vor_model_state
@@ -333,7 +330,7 @@ class Voronoi(nn.Module):
         self.acc_l = acc_l
         self.es = es
 
-    def plot_accuracy_and_loss(self):
+    def plot_accuracy_and_loss(self, epochs):
         cost_ll_log = np.log(self.cost_ll)
 
         fig, ax1 = plt.subplots(figsize=(10, 10))
@@ -349,8 +346,8 @@ class Voronoi(nn.Module):
         ax2.legend(loc='upper right')
         ax2.set_ylim([-1, 6])
         # set x_lim in both
-        ax1.set_xlim([0, self.epochs])
-        ax2.set_xlim([0, self.epochs])
+        ax1.set_xlim([0, epochs])
+        ax2.set_xlim([0, epochs])
         # add stars to the plot points
         ax1.scatter(self.es, self.acc_l, c='r', s=100, marker='*')
         ax2.scatter(self.es, cost_ll_log, c='royalblue', s=100, marker='*')
