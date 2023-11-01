@@ -269,7 +269,8 @@ class Voronoi(nn.Module):
         z_l = []
         cost_l = []
         cost_ll = []
-        qp = torch.tensor(qp).to(device)
+        qp = qp if torch.is_tensor(qp) else torch.tensor(qp)
+        qp = qp.float().to(device)
 
         ce = nn.CrossEntropyLoss()
         acc_l = []
@@ -278,7 +279,6 @@ class Voronoi(nn.Module):
         best_vor_cost = torch.inf
         best_vor_model_state = None
         for epoch in range(epochs):
-            qp = torch.tensor(qp, dtype=torch.float32).to(device)
             # get outputs
             outputs = self(qp)
             # pass outputs through a hard arg max
