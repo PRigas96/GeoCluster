@@ -5,7 +5,7 @@ from torch.nn.functional import one_hot
 from torch.distributions import Dirichlet
 from src.ebmUtils import Reg, RegLatent, loss_functional
 import matplotlib.pyplot as plt
-from copy import deepcopy
+
 
 class LVGEBM(nn.Module):
     """
@@ -177,7 +177,7 @@ class LVGEBM(nn.Module):
             optimizer.step()
             if cost < best_cost:
                 best_cost = cost
-                best_model_state = deepcopy(self.state_dict())
+                best_model_state = self.state_dict()
                 best_outputs = y_pred
                 best_z = z
                 best_lat = self.z_l
@@ -269,8 +269,7 @@ class Voronoi(nn.Module):
         z_l = []
         cost_l = []
         cost_ll = []
-        qp = qp if torch.is_tensor(qp) else torch.tensor(qp)
-        qp = qp.float().to(device)
+        qp = torch.tensor(qp).to(device)
 
         ce = nn.CrossEntropyLoss()
         acc_l = []
@@ -279,6 +278,7 @@ class Voronoi(nn.Module):
         best_vor_cost = torch.inf
         best_vor_model_state = None
         for epoch in range(epochs):
+            qp = torch.tensor(qp, dtype=torch.float32).to(device)
             # get outputs
             outputs = self(qp)
             # pass outputs through a hard arg max
@@ -300,7 +300,7 @@ class Voronoi(nn.Module):
             # get z_cost where we only penalize the wrong z and not its distance
             # z_cost = penalty(z, r_z)
             # F_l.append(F_cost.item())
-            # z_l.append(z_cost)
+            z_l.append(z_cost)
             # cost = alpha*F_cost + beta*z_cost
             cost = 100 * z_cost
             cost_l.append(cost.item())
@@ -310,7 +310,7 @@ class Voronoi(nn.Module):
             optimizer.step()
             if cost < best_vor_cost:
                 best_vor_cost = cost
-                best_vor_model_state = deepcopy(self.state_dict())
+                best_vor_model_state = self.state_dict()
             if epoch % 2000 == 0:
                 # lets check acc
                 acc = 0

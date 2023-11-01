@@ -66,7 +66,7 @@ def loss_functional(y_hat, y_target, model):
         for j in range(n_centroids):
             # get square
             square = y_target[i] # get square
-            #square = torch.tensor(square)
+            # square = torch.tensor(square)
             #y_hat[j] = y_hat[j].clone().detach().requires_grad_(True)
             loss[i, j], _, _ = Linf(square, y_hat[j]) # compute loss
     return loss 
