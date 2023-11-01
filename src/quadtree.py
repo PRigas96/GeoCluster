@@ -12,11 +12,14 @@ class QuadTree:
 
     def __init__(self, threshold, data, teacher_args, un_args, student_args):
         # self.boundary = boundary        #The given bounding box
-        self.threshold = threshold      #Minimum number of data (objects) in a node
-        self.data = data                #The input data (objects)
+        self.threshold = threshold      # Minimum number of data (objects) in a node.
+        self.data = data                # The input data (objects).
+        self.teacher_args = teacher_args
+        self.un_args = un_args
+        self.student_args = student_args
         self.divided = False
         self.root = self.Node(self.data, 0, self)
-        # self.root.create_student(teacher_args, un_args, student_args)   #Extract the trained student model for the root node
+        # self.root.create_student()   # Extract the trained student model for the root node.
 
     class Node:
         """Implements a node class to use in a tree."""
@@ -31,7 +34,7 @@ class QuadTree:
             self.index = index
             self.best_z = torch.empty(0)
 
-        def create_student(self, teacher_args, un_args, student_args, plot=False):
+        def create_student(self, plot=False):
             # First calculate the area of the data.
             x_lim = [m.floor(min(self.data[:, 0])), m.ceil(max(self.data[:, 0]))]
             y_lim = [m.floor(min(self.data[:, 1])), m.ceil(max(self.data[:, 1]))]
@@ -39,10 +42,13 @@ class QuadTree:
             # Create and train the teacher model.
             teacher = LVGEBM(4, 2, 400).to(self.device)
             # Populate the optimizer with the model parameters and the learning rate.
-            teacher_args["optimizer"] = torch.optim.Adam(teacher.parameters(), lr=teacher_args["optimizer_lr"])
+            teacher_args = self.quadtree.teacher_args
+            self.quadtree.teacher_args["optimizer"] = torch.optim.Adam(teacher.parameters(),
+                                                                       lr=teacher_args["optimizer_lr"])
             del teacher_args["optimizer_lr"]
             # Train the teacher model and assign the best state found during training.
             teacher.train_(**teacher_args)
+            teacher.load_state_dict(teacher.best_model_state)
             # Plot training results.
             if plot:
                 # Plot the Amplitude demodulation of the signal (costs array).
@@ -57,7 +63,7 @@ class QuadTree:
 
             # Calculate the Uncertainty Area.
             m_points = getUncertaintyArea(outputs=teacher.best_outputs.cpu().detach().numpy(),
-                                          x_area=x_lim, y_area=y_lim, model=None, **un_args)
+                                          x_area=x_lim, y_area=y_lim, model=None, **self.quadtree.un_args)
             m_points = np.array(m_points)
             # Plot the Uncertainty Area.
             if plot:
@@ -106,11 +112,13 @@ class QuadTree:
 
             # Create and train the student model and assign the best state found during training.
             student = Voronoi(4, 2, 2).to(self.device)  # initialize the voronoi network
+            student_args = self.quadtree.student_args
             student.train_(optimizer=torch.optim.Adam(student.parameters(), lr=student_args["optimizer_lr"]),
                            epochs=student_args["epochs"],
                            device=self.device,
                            qp=qp,
                            F_ps=F_ps)
+            student.load_state_dict(student.best_vor_model_state)
             # Plot the student training results.
             if plot:
                 student.plot_accuracy_and_loss(student_args["epochs"])
@@ -128,11 +136,11 @@ class QuadTree:
         def isLeaf(self, data):
             return len(data) <= self.quadtree.threshold
 
-        #Create 4 child nodes, where every child stores one of the four clusters produced
+        # Create 4 child nodes, where every child stores one of the four clusters produced.
         def divide(self):
-            #Retrieve the data that exist in each of the clusters
-            unique_clusters = torch.unique(self.teacher.best_z)
+            # Retrieve the data that exist in each of the clusters.
+            unique_clusters = torch.unique(self.best_z)
             for cluster in unique_clusters:
-                cluster_data = self.data[self.teacher.best_z == cluster]
-                #Create a child node with the corresponding data
+                cluster_data = self.data[self.best_z == cluster]
+                # Create a child node with the corresponding data.
                 self.children.append(QuadTree.Node(cluster_data, cluster.item(), self.quadtree))
