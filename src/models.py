@@ -5,7 +5,7 @@ from torch.nn.functional import one_hot
 from torch.distributions import Dirichlet
 from src.ebmUtils import Reg, RegLatent, loss_functional
 import matplotlib.pyplot as plt
-
+from copy import deepcopy
 
 class LVGEBM(nn.Module):
     """
@@ -177,7 +177,7 @@ class LVGEBM(nn.Module):
             optimizer.step()
             if cost < best_cost:
                 best_cost = cost
-                best_model_state = self.state_dict()
+                best_model_state = deepcopy(self.state_dict())
                 best_outputs = y_pred
                 best_z = z
                 best_lat = self.z_l
@@ -310,7 +310,7 @@ class Voronoi(nn.Module):
             optimizer.step()
             if cost < best_vor_cost:
                 best_vor_cost = cost
-                best_vor_model_state = self.state_dict()
+                best_vor_model_state = deepcopy(self.state_dict())
             if epoch % 2000 == 0:
                 # lets check acc
                 acc = 0

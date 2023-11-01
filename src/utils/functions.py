@@ -34,7 +34,7 @@ def getUncertaintyArea(outputs, N, M, epsilon, x_area, y_area, model):
     for i in range(N ** 2):
         n_points[i] = torch.tensor([x_p[i % N], y_p[i // N]])
     # now lets get the uncertainty area for each point
-    E = Linf_array(torch.tensor(n_points), torch.tensor(outputs))
+    E = Linf_array(n_points, torch.tensor(outputs))
     # get the min distance
     m_points = []
     m = 0
@@ -98,7 +98,7 @@ def getUncertaintyArea(outputs, N, M, epsilon, x_area, y_area, model):
     return m_points
 
 
-def getE(model, best_outputs, qp):
+def getE(model, best_outputs, qp, sq):
     """
         Get the Linf distance between the outputs and the qp points
 
@@ -106,6 +106,7 @@ def getE(model, best_outputs, qp):
             model: the teacher network
             best_outputs: the outputs of the teacher network
             qp: the points to compare the outputs to
+            sq: the sq points
 
         Returns:
             F: the Linf distance between the outputs and the qp points
@@ -114,10 +115,10 @@ def getE(model, best_outputs, qp):
             z_sq: the index of the sq point that is closest to the output
     """
     # get qp
-    qp = torch.tensor(qp)
+    qp = qp if torch.is_tensor(qp) else torch.tensor(qp)
     # get outputs
     outputs = best_outputs
-    outputs = torch.tensor(outputs)
+    outputs = outputs if torch.is_tensor(outputs) else torch.tensor(outputs)
     # make Linf between outputs points and qp (between them all)
     E = torch.zeros(outputs.shape[0], qp.shape[0])
     for i in range(outputs.shape[0]):
@@ -126,8 +127,7 @@ def getE(model, best_outputs, qp):
     F, z = E.min(0)
     # now do the same for sq
     outputs = outputs.detach().numpy()
-    sq_, _ = loadData(100)
-    E_sq = loss_functional(outputs, sq_, model)
+    E_sq = loss_functional(outputs, sq, model)
     F_sq, z_sq = E_sq.min(1)
 
     return F, z, F_sq, z_sq
