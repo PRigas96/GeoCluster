@@ -300,7 +300,7 @@ class Voronoi(nn.Module):
             # get z_cost where we only penalize the wrong z and not its distance
             # z_cost = penalty(z, r_z)
             # F_l.append(F_cost.item())
-            z_l.append(z_cost)
+            # z_l.append(z_cost)
             # cost = alpha*F_cost + beta*z_cost
             cost = 100 * z_cost
             cost_l.append(cost.item())
