@@ -34,11 +34,14 @@ class QuadTree:
             self.index = index
             self.best_z = torch.empty(0)
 
-        def create_student(self, plot=False):
+        def create_student(self, save_path_prefix="", plot=False):
             # First calculate the area of the data.
             x_lim = [m.floor(min(self.data[:, 0])), m.ceil(max(self.data[:, 0]))]
             y_lim = [m.floor(min(self.data[:, 1])), m.ceil(max(self.data[:, 1]))]
 
+            """
+            Teacher model.
+            """
             # Create and train the teacher model.
             teacher = LVGEBM(4, 2, 400).to(self.device)
             # Populate the optimizer with the model parameters and the learning rate.
@@ -49,6 +52,30 @@ class QuadTree:
             # Train the teacher model and assign the best state found during training.
             teacher.train_(**teacher_args)
             teacher.load_state_dict(teacher.best_model_state)
+            
+            # Save the model and some training results.
+            if save_path_prefix != "":
+                # Save best model state to .pt format.
+                torch.save(teacher.best_model_state, f"{save_path_prefix}_teacher_config.pt")
+                print(f"Saved teacher config to {save_path_prefix}_teacher_config.pt")
+
+                # Save training results to .npy format.
+                teacher_results = {
+                    "best_model_state": teacher.best_model_state,
+                    "best_outputs": teacher.best_outputs,
+                    "best_z": teacher.best_z,
+                    "best_lat": teacher.best_lat,
+                    "best_epoch": teacher.best_epoch,
+                    "p_p": teacher.p_p,
+                    "p_c": teacher.p_c,
+                    "reg_proj_array": teacher.reg_proj_array,
+                    "reg_latent_array": teacher.reg_latent_array,
+                    "memory": teacher.memory,
+                    "cost_array": teacher.cost_array
+                }
+                np.save(f"{save_path_prefix}_teacher_training_results.npy", teacher_results)
+                print(f"Saved teacher training results to {save_path_prefix}_teacher_training_results.npy")
+            
             # Plot training results.
             if plot:
                 # Plot the Amplitude demodulation of the signal (costs array).
@@ -61,10 +88,14 @@ class QuadTree:
                 pt.plotManifold(self.data, manifold, teacher.best_outputs.cpu(), x_lim, y_lim)
                 plt.show()
 
+            """
+            Uncertainty Area.
+            """
             # Calculate the Uncertainty Area.
             m_points = getUncertaintyArea(outputs=teacher.best_outputs.cpu().detach().numpy(),
                                           x_area=x_lim, y_area=y_lim, model=None, **self.quadtree.un_args)
             m_points = np.array(m_points)
+            
             # Plot the Uncertainty Area.
             if plot:
                 # Plot the m points that are in the uncertainty area.
@@ -77,7 +108,9 @@ class QuadTree:
                 plt.legend()
                 plt.show()
 
-            # Labeling.
+            """
+            Labeling.
+            """
             qp = np.random.permutation(m_points)
             qp = torch.tensor(qp)
             F, z, F_sq, z_sq = getE(teacher, teacher.best_outputs.cpu(), qp, self.data)
@@ -95,6 +128,7 @@ class QuadTree:
                     qpoint = qp[i].cpu().detach().numpy()
                     F_ps[i, j], z_ps[i, j] = torch.tensor(NearestNeighbour(qpoint, pseudo_clusters[j]))
             print(f"Labeled all {outputs_shape[0]}/{outputs_shape[0]} points.")
+            
             # Plot the labels.
             if plot:
                 # plot qp
@@ -110,6 +144,9 @@ class QuadTree:
                 pt.plot_data_on_manifold(fig, ax, self.data, size=10, limits=x_lim + y_lim)
                 plt.show()
 
+            """
+            Student model.
+            """
             # Create and train the student model and assign the best state found during training.
             student = Voronoi(4, 2, 2).to(self.device)  # initialize the voronoi network
             student_args = self.quadtree.student_args
@@ -119,6 +156,23 @@ class QuadTree:
                            qp=qp,
                            F_ps=F_ps)
             student.load_state_dict(student.best_vor_model_state)
+            
+            # Save the model and some training results.
+            if save_path_prefix != "":
+                # Save voronoi model.
+                torch.save(student.best_vor_model_state, f"{save_path_prefix}_student_config.pt")
+                print(f"Saved student config to {save_path_prefix}_student_config.pt")
+
+                # Save training results to .npy format.
+                student_results = {
+                    "best_vor_model_state": student.best_vor_model_state,
+                    "cost_ll": student.cost_ll,
+                    "acc_l": student.acc_l,
+                    "es": student.es
+                }
+                np.save(f"{save_path_prefix}_student_training_results.npy", student_results)
+                print(f"Saved teacher training results to {save_path_prefix}_student_training_results.npy")
+            
             # Plot the student training results.
             if plot:
                 student.plot_accuracy_and_loss(student_args["epochs"])
