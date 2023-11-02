@@ -36,8 +36,9 @@ class QuadTree:
 
         def create_student(self, save_path_prefix="", plot=False):
             # First calculate the area of the data.
-            x_lim = [m.floor(min(self.data[:, 0])), m.ceil(max(self.data[:, 0]))]
-            y_lim = [m.floor(min(self.data[:, 1])), m.ceil(max(self.data[:, 1]))]
+            size_sup = 2 * max(self.data[:, 2])
+            x_lim = [m.floor(min(self.data[:, 0] - size_sup)), m.ceil(max(self.data[:, 0] + size_sup))]
+            y_lim = [m.floor(min(self.data[:, 1] - size_sup)), m.ceil(max(self.data[:, 1] + size_sup))]
 
             """
             Teacher model.
