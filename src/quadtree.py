@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from src.models import LVGEBM, Voronoi
+from queue import Queue
 from src.utils.functions import getUncertaintyArea, getE, NearestNeighbour
 import math as m
 import matplotlib.pyplot as plt
@@ -18,8 +19,24 @@ class QuadTree:
         self.un_args = un_args
         self.student_args = student_args
         self.divided = False
-        self.root = self.Node(self.data, 0, self)
+        self.root = self.Node(self.data, "0", self)
         # self.root.create_student()   # Extract the trained student model for the root node.
+
+    def create_tree(self, save_path_prefix="", plot=False):
+        queue = Queue()
+        queue.put(self.root)
+
+        while not queue.empty():
+            node = queue.get()
+            # If a save path is set, append the node index to it.
+            save_path_index_prefix = "" if save_path_prefix == "" else save_path_prefix + node.index
+            # Create the student model.
+            node.create_student(save_path_index_prefix, plot)
+            # Divide the node if it's not a leaf (is_leaf() checks for termination criteria).
+            if not node.isLeaf():
+                node.divide()
+                for i in range(4):
+                    queue.put(node.children[i])
 
     class Node:
         """Implements a node class to use in a tree."""
@@ -35,6 +52,10 @@ class QuadTree:
             self.best_z = torch.empty(0)
 
         def create_student(self, save_path_prefix="", plot=False):
+            # If the node has no data, do nothing.
+            if len(self.data) == 0:
+                return
+
             # First calculate the area of the data.
             size_sup = 2 * max(self.data[:, 2])
             x_lim = [m.floor(min(self.data[:, 0] - size_sup)), m.ceil(max(self.data[:, 0] + size_sup))]
@@ -46,12 +67,11 @@ class QuadTree:
             # Create and train the teacher model.
             teacher = LVGEBM(4, 2, 400).to(self.device)
             # Populate the optimizer with the model parameters and the learning rate.
-            teacher_args = self.quadtree.teacher_args
-            self.quadtree.teacher_args["optimizer"] = torch.optim.Adam(teacher.parameters(),
-                                                                       lr=teacher_args["optimizer_lr"])
+            teacher_args = self.quadtree.teacher_args.copy()
+            teacher_args["optimizer"] = torch.optim.Adam(teacher.parameters(), lr=teacher_args["optimizer_lr"])
             del teacher_args["optimizer_lr"]
             # Train the teacher model and assign the best state found during training.
-            teacher.train_(**teacher_args)
+            teacher.train_(train_data=torch.from_numpy(self.data).float().to(self.device), **teacher_args)
             teacher.load_state_dict(teacher.best_model_state)
             
             # Save the model and some training results.
@@ -85,7 +105,7 @@ class QuadTree:
                                                                         fs=2 * len(signal))
                 pt.plot_AM_dem(upper_signal, lower_signal, filtered_signal, signal, teacher.best_epoch)
                 # Plot the best model with the best outputs.
-                manifold = pt.createManifold(teacher, teacher.best_outputs.cpu())
+                manifold = pt.createManifold(teacher, teacher.best_outputs.cpu(), x_lim=x_lim, y_lim=y_lim)
                 pt.plotManifold(self.data, manifold, teacher.best_outputs.cpu(), x_lim, y_lim)
                 plt.show()
 
@@ -188,8 +208,8 @@ class QuadTree:
             student.eval()
             self.student = student
 
-        def isLeaf(self, data):
-            return len(data) <= self.quadtree.threshold
+        def isLeaf(self):
+            return len(self.data) <= self.quadtree.threshold
 
         # Create 4 child nodes, where every child stores one of the four clusters produced.
         def divide(self):
@@ -198,4 +218,4 @@ class QuadTree:
             for cluster in unique_clusters:
                 cluster_data = self.data[self.best_z == cluster]
                 # Create a child node with the corresponding data.
-                self.children.append(QuadTree.Node(cluster_data, cluster.item(), self.quadtree))
+                self.children.append(QuadTree.Node(cluster_data, f"{self.index}{cluster.item()}", self.quadtree))
