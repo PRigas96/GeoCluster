@@ -116,7 +116,7 @@ class LVGEBM(nn.Module):
 
         return y_hat
 
-    def train_(self, optimizer, epochs, times, train_data, alpha=10, beta=10, f_clk=2, scale=1e-2,
+    def train_(self, optimizer, epochs, times, train_data, x_lim, y_lim, alpha=10, beta=10, f_clk=2, scale=1e-2,
                bound_for_saving=6000):
         """
             Train the teacher model
@@ -131,6 +131,8 @@ class LVGEBM(nn.Module):
                 f_clk: frequency of the clock
                 scale: scale of the noise
                 bound_for_saving: bound for saving the data
+                x_lim: the x-axis of the bounding box
+                y_lim: the y-axis of the bounding box
         """
         print("Training Teacher Model")
         p_times = epochs // times  # print times
@@ -153,7 +155,7 @@ class LVGEBM(nn.Module):
                 y_pred_std = y_pred_std.to(y_pred.device)
                 y_pred = y_pred + y_pred_std
 
-            reg_proj = Reg(y_pred)  # regularize projection module
+            reg_proj = Reg(y_pred, x_lim, y_lim)  # regularize projection module
             if reg_proj == 0:
                 reg_proj = torch.tensor(0.0)
             reg_proj_array.append(reg_proj)  # save reg_proj

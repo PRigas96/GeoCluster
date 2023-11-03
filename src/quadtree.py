@@ -71,7 +71,8 @@ class QuadTree:
             teacher_args["optimizer"] = torch.optim.Adam(teacher.parameters(), lr=teacher_args["optimizer_lr"])
             del teacher_args["optimizer_lr"]
             # Train the teacher model and assign the best state found during training.
-            teacher.train_(train_data=torch.from_numpy(self.data).float().to(self.device), **teacher_args)
+            teacher.train_(train_data=torch.from_numpy(self.data).float().to(self.device),
+                           x_lim=x_lim, y_lim=y_lim, **teacher_args)
             teacher.load_state_dict(teacher.best_model_state)
             
             # Save the model and some training results.

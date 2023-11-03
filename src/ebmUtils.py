@@ -2,7 +2,7 @@ import torch
 import src.geometry as geo
 from src.metrics import Linf
 
-def Reg(outputs, dims, xlim, ylim):
+def Reg(outputs, xlim, ylim):
     """
         Regularize the output of the projector inside the data-area
         
@@ -15,7 +15,7 @@ def Reg(outputs, dims, xlim, ylim):
     reg_cost = 0
 
     for centroid in outputs:
-        reg_cost += max(xlim[0] - centroid[0], 0) + max(centroid[0] - xlim[1], 0) + max(ylim[0] - centroid[1], 0) + max(ylim[1] - centroid[1], 0)
+        reg_cost += max(xlim[0] - centroid[0], 0) + max(centroid[0] - xlim[1], 0) + max(ylim[0] - centroid[1], 0) + max(centroid[1] - ylim[1], 0)
             
     return reg_cost
 
