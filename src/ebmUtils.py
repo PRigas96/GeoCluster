@@ -1,6 +1,7 @@
 import torch
 import src.geometry as geo
 from src.metrics import Linf
+import numpy as np
 
 def Reg(outputs, xlim, ylim):
     """
@@ -13,10 +14,18 @@ def Reg(outputs, xlim, ylim):
             reg_cost (float): regularization cost
     """
     reg_cost = 0
+    bbox = [xlim, ylim]
 
     for centroid in outputs:
-        reg_cost += max(xlim[0] - centroid[0], 0) + max(centroid[0] - xlim[1], 0) + max(ylim[0] - centroid[1], 0) + max(centroid[1] - ylim[1], 0)
-            
+        for centroid_dim in centroid:
+            for boundary in bbox:
+                current_prod = 1
+                min_dist = np.inf
+                for boundary_dim in boundary:
+                    min_dist = min(min_dist, abs(boundary_dim - centroid_dim)) 
+                    current_prod *= (boundary_dim - centroid_dim) / (abs(boundary_dim - centroid_dim))
+                reg_cost += max(0, current_prod) * min_dist  
+
     return reg_cost
 
 def RegLatent(latent):
