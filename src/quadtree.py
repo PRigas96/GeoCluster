@@ -3,6 +3,7 @@ import numpy as np
 from src.models import LVGEBM, Voronoi
 from queue import Queue
 from src.utils.functions import getUncertaintyArea, getE, NearestNeighbour
+from src.metrics import Linf
 import math as m
 import matplotlib.pyplot as plt
 from src.utils import plot_tools as pt
@@ -30,13 +31,23 @@ class QuadTree:
             node = queue.get()
             # If a save path is set, append the node index to it.
             save_path_index_prefix = "" if save_path_prefix == "" else save_path_prefix + node.index
-            # Create the student model.
-            node.create_student(save_path_index_prefix, plot)
-            # Divide the node if it's not a leaf (is_leaf() checks for termination criteria).
-            if not node.isLeaf():
+
+            # Create the student and divide the node if the data has size less than the defined threshold.
+            if len(node.data) > self.threshold:
+                node.create_student(save_path_index_prefix, plot)
                 node.divide()
                 for i in range(4):
                     queue.put(node.children[i])
+
+    def query(self, query_point):
+        query_point = query_point if torch.is_tensor(query_point) else torch.tensor(query_point)
+        node = self.root
+        while not node.isLeaf():
+            pred = node.student(query_point)
+            z = pred.argmin()
+            node = node.children[z]
+
+        return node.query(query_point)
 
     class Node:
         """Implements a node class to use in a tree."""
@@ -210,7 +221,7 @@ class QuadTree:
             self.student = student
 
         def isLeaf(self):
-            return len(self.data) <= self.quadtree.threshold
+            return len(self.children) == 0
 
         # Create 4 child nodes, where every child stores one of the four clusters produced.
         def divide(self):
@@ -220,3 +231,8 @@ class QuadTree:
                 cluster_data = self.data[self.best_z == cluster]
                 # Create a child node with the corresponding data.
                 self.children.append(QuadTree.Node(cluster_data, f"{self.index}{cluster.item()}", self.quadtree))
+
+        def query(self, query_point):
+            dists = np.array([Linf(self.data[i], query_point)[0] for i in range(len(self.data))])
+            min_dist_index = dists.argmin()
+            return self.data[min_dist_index]
