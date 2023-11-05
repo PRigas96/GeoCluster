@@ -1,8 +1,9 @@
 import torch
 import src.geometry as geo
 from src.metrics import Linf
+import numpy as np
 
-def Reg(outputs):
+def Reg(outputs, xlim, ylim):
     """
         Regularize the output of the projector inside the data-area
         
@@ -13,16 +14,18 @@ def Reg(outputs):
             reg_cost (float): regularization cost
     """
     reg_cost = 0
-    space_x = torch.tensor([0,300])
-    space_y = torch.tensor([0,300])
-    
-    for point in outputs:
-        for el in point:
-            if el < 0:
-                reg_cost += torch.abs(el)
-            if el > 300:
-                reg_cost += torch.abs(el - 300)
-            
+    bbox = [xlim, ylim]
+
+    for centroid in outputs:
+        for centroid_dim in centroid:
+            for boundary in bbox:
+                current_prod = 1
+                min_dist = np.inf
+                for boundary_dim in boundary:
+                    min_dist = min(min_dist, abs(boundary_dim - centroid_dim)) 
+                    current_prod *= (boundary_dim - centroid_dim) / (abs(boundary_dim - centroid_dim))
+                reg_cost += max(0, current_prod) * min_dist  
+
     return reg_cost
 
 def RegLatent(latent):
@@ -66,7 +69,7 @@ def loss_functional(y_hat, y_target, model):
         for j in range(n_centroids):
             # get square
             square = y_target[i] # get square
-            #square = torch.tensor(square)
+            # square = torch.tensor(square)
             #y_hat[j] = y_hat[j].clone().detach().requires_grad_(True)
             loss[i, j], _, _ = Linf(square, y_hat[j]) # compute loss
     return loss 
