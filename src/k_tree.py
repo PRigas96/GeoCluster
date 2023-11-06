@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from src.models import LVGEBM, Voronoi
+from src.models import Teacher, Student
 from queue import Queue
 from src.utils.functions import getUncertaintyArea, getE, NearestNeighbour
 from src.metrics import Linf
@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 from src.utils import plot_tools as pt
 
 
-class QuadTree:
-    """Implements a quadtree class to use in Hierarchical Clustering"""
+class Ktree:
+    """Implements a k-tree class to use in Hierarchical Clustering"""
 
     def __init__(self, threshold, data, teacher_args, un_args, student_args):
         # self.boundary = boundary        #The given bounding box
@@ -20,7 +20,8 @@ class QuadTree:
         self.un_args = un_args
         self.student_args = student_args
         self.divided = False
-        self.root = self.Node(self.data, "0", self)
+        root_parent = None
+        self.root = self.Node(self.data, "0", self, root_parent)
         # self.root.create_student()   # Extract the trained student model for the root node.
 
     def create_tree(self, save_path_prefix="", plot=False):
@@ -44,7 +45,7 @@ class QuadTree:
         node = self.root
         while not node.isLeaf():
             pred = node.student(query_point)
-            z = pred.argmin()
+            z = pred.argmax()
             node = node.children[z]
 
         return node.query(query_point)
@@ -52,16 +53,18 @@ class QuadTree:
     class Node:
         """Implements a node class to use in a tree."""
 
-        def __init__(self, data, index, quadtree):
+        def __init__(self, data, index, ktree, parent):
             """Initialise the class."""
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # never 
             self.device = "cpu"
             self.data = data
             self.student = None
             self.children = []
-            self.quadtree = quadtree
+            self.ktree = ktree
             self.index = index
             self.best_z = torch.empty(0)
+            self.parent = parent
+            self.energies = []
 
         def create_student(self, save_path_prefix="", plot=False):
             # If the node has no data, do nothing.
@@ -76,10 +79,11 @@ class QuadTree:
             """
             Teacher model.
             """
+            
             # Create and train the teacher model.
-            teacher = LVGEBM(4, 2, 400).to(self.device)
+            teacher = Teacher(4, 2, 400, len(self.index) - 1, self.parent).to(self.device)
             # Populate the optimizer with the model parameters and the learning rate.
-            teacher_args = self.quadtree.teacher_args.copy()
+            teacher_args = self.ktree.teacher_args.copy()
             teacher_args["optimizer"] = torch.optim.Adam(teacher.parameters(), lr=teacher_args["optimizer_lr"])
             del teacher_args["optimizer_lr"]
             # Train the teacher model and assign the best state found during training.
@@ -127,7 +131,7 @@ class QuadTree:
             """
             # Calculate the Uncertainty Area.
             m_points = getUncertaintyArea(outputs=teacher.best_outputs.cpu().detach().numpy(),
-                                          x_area=x_lim, y_area=y_lim, model=None, **self.quadtree.un_args)
+                                          x_area=x_lim, y_area=y_lim, model=None, **self.ktree.un_args)
             m_points = np.array(m_points)
             
             # Plot the Uncertainty Area.
@@ -182,8 +186,8 @@ class QuadTree:
             Student model.
             """
             # Create and train the student model and assign the best state found during training.
-            student = Voronoi(4, 2, 2).to(self.device)  # initialize the voronoi network
-            student_args = self.quadtree.student_args
+            student = Student(4, 2, 2).to(self.device)  # initialize the voronoi network
+            student_args = self.ktree.student_args
             student.train_(optimizer=torch.optim.Adam(student.parameters(), lr=student_args["optimizer_lr"]),
                            epochs=student_args["epochs"],
                            device=self.device,
@@ -216,7 +220,7 @@ class QuadTree:
             self.best_z = teacher.best_z
 
         def create_student_from_config(self, path):
-            student = Voronoi(4, 2, 2).to(self.device)
+            student = Student(4, 2, 2).to(self.device)
             student.load_state_dict(torch.load(path))
             student.eval()
             self.student = student
@@ -231,7 +235,7 @@ class QuadTree:
             for cluster in unique_clusters:
                 cluster_data = self.data[self.best_z == cluster]
                 # Create a child node with the corresponding data.
-                self.children.append(QuadTree.Node(cluster_data, f"{self.index}{cluster.item()}", self.quadtree))
+                self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster.item()}", self.ktree, self))
 
         def query(self, query_point):
             dists = np.array([Linf(self.data[i], query_point)[0] for i in range(len(self.data))])

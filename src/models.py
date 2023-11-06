@@ -7,7 +7,7 @@ from src.ebmUtils import Reg, RegLatent, loss_functional
 import matplotlib.pyplot as plt
 from copy import deepcopy
 
-class LVGEBM(nn.Module):
+class Teacher(nn.Module):
     """
         Latent Variable Generative Energy Based Model
 
@@ -33,11 +33,13 @@ class LVGEBM(nn.Module):
         TODO: get pump to work in module 
 
     """
-    def __init__(self, n_centroids, output_dim, latent_size=400):
-        super(LVGEBM, self).__init__()
+    def __init__(self, n_centroids, output_dim, latent_size=400, layer=0, node=None):
+        super(Teacher, self).__init__()
         self.n_centroids = n_centroids
         self.output_dim = output_dim
         self.latent_size = latent_size
+        self.layer = layer
+        self.node = node
         # decoder is a linear layer
         self.decoder = nn.Sequential(
             nn.Linear(latent_size, output_dim, bias=False),
@@ -155,7 +157,7 @@ class LVGEBM(nn.Module):
                 y_pred_std = y_pred_std.to(y_pred.device)
                 y_pred = y_pred + y_pred_std
 
-            reg_proj = Reg(y_pred, x_lim, y_lim)  # regularize projection module
+            reg_proj = Reg(y_pred, x_lim, y_lim, self.layer, self.node)  # regularize projection module
             if reg_proj == 0:
                 reg_proj = torch.tensor(0.0)
             reg_proj_array.append(reg_proj)  # save reg_proj
@@ -210,7 +212,7 @@ class LVGEBM(nn.Module):
         self.cost_array = cost_array
 
 
-class Voronoi(nn.Module):
+class Student(nn.Module):
     """
         Voronoi Energy Based Model
         
@@ -226,7 +228,7 @@ class Voronoi(nn.Module):
             forward: predicted energy
     """
     def __init__(self, n_centroids, input_dim, output_dim):
-        super(Voronoi, self).__init__()
+        super(Student, self).__init__()
         self.n_centroids = n_centroids
         self.input_dim = input_dim
         self.output_dim = output_dim
