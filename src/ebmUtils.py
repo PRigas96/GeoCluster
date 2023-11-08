@@ -18,8 +18,8 @@ def Reg(outputs, xlim, ylim, node_index, parent_node):
     #to alpha to proto einai to varos tis relu
     #meta oso katevaineis layers + 10 to alpha
     layer = len(node_index) - 1
-    alpha = 10*layer
-    ce = nn.CrossEntropyLoss()
+    alpha = 10*layer # maybe 5 ?
+    ce = nn.CrossEntropyLoss() 
     reg_cost = 0
     bbox = [xlim, ylim]
 
@@ -34,6 +34,19 @@ def Reg(outputs, xlim, ylim, node_index, parent_node):
                         current_prod *= (boundary_dim - centroid_dim) / (abs(boundary_dim - centroid_dim))
                     reg_cost += max(0, current_prod) * min_dist
     else:
+        """
+            Regularize the output of the predictor inside the data-area
+            
+            reg_cost = sum of all previous regs in path + current
+            current = alpha * ce(student(outputs), where do i  wanna belong to)
+            -----------------------------------------------
+            here you use parent_node.best_reg which is a constant. (i think so)
+            We calculate all previous ones again, so that it goes where we want it.
+            Otherwise, its just a constant loss.
+            See pdf for more info.
+
+        """
+
         child_label = int(node_index[-1])
         reg_cost = parent_node.best_reg + alpha * ce(parent_node.student(outputs),
                                                      torch.tensor([child_label for i in range(4)]))
@@ -51,6 +64,8 @@ def RegLatent(latent):
             reg_cost (float): regularization cost
 
         #TODO check if regularization can be written in a more elegant way
+            like mu^2 = 0
+            or a p-norm regularization
     """
     kld = 0
     for i in range(latent.shape[1]):
