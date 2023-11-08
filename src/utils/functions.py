@@ -34,6 +34,9 @@ def getUncertaintyArea(outputs, N, M, epsilon, x_area, y_area, model):
     n_points = torch.zeros(N ** 2, 2)
     x_p = np.linspace(x_area[0], x_area[1], N)
     y_p = np.linspace(y_area[0], y_area[1], N)
+    scale = torch.tensor([x_area[1] - x_area[0], y_area[1] - y_area[0]])
+    scale = torch.max(scale)
+    print(f'scale is {scale}')
     for i in range(N ** 2):
         n_points[i] = torch.tensor([x_p[i % N], y_p[i // N]])
     # now lets get the uncertainty area for each point
@@ -51,7 +54,7 @@ def getUncertaintyArea(outputs, N, M, epsilon, x_area, y_area, model):
         F1 = E1.min()
         # diff should be E1 - F1 for all points (E1 is a vector ) and F1 is a scalar
         diff = torch.abs(E1 - F1)  # diff is a vector
-        eps = epsilon * 300  # 300 is the max L_inf dist = a length measure of the space
+        eps = epsilon * scale  # 300 is the max L_inf dist = a length measure of the space
         cnt = 0  # count the number of centroids that are close to the current point
         for j in range(E1.shape[0]):
             if diff[j] <= eps and F1 != E1[j]:
