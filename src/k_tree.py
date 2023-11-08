@@ -10,7 +10,36 @@ from src.utils import plot_tools as pt
 
 
 class Ktree:
-    """Implements a k-tree class to use in Hierarchical Clustering"""
+    """
+        Implements a k-tree class to use in Hierarchical Clustering
+
+        Parameters:
+            threshold (int): The minimum number of data (objects) in a node.
+            data (list): The input data (objects).
+            teacher_args (dict): The arguments for the teacher model.
+            un_args (dict): The arguments for the uncertainty area.
+            student_args (dict): The arguments for the student model.
+
+        Attributes:
+            threshold (int): The minimum number of data (objects) in a node.
+            data (list): The input data (objects).
+            teacher_args (dict): The arguments for the teacher model.
+            un_args (dict): The arguments for the uncertainty area.
+            student_args (dict): The arguments for the student model.
+            divided (bool): Whether the tree has been divided or not.
+            root (Node): The root node of the tree.
+            
+        Methods:
+            create_tree (save_path_prefix="", plot=False): Creates the tree.
+            query (query_point): Returns the nearest neighbour of the query point.
+            Node:
+                __init__ (data, index, ktree, parent): Initialises the node class.
+                create_student (save_path_prefix="", plot=False): Creates the student model.
+                isLeaf (): Returns whether the node is a leaf or not.
+                divide (): Divides the node.
+                query (query_point): Returns the nearest neighbour of the query point.
+                
+    """
 
     def __init__(self, threshold, data, teacher_args, un_args, student_args):
         # self.boundary = boundary        #The given bounding box
