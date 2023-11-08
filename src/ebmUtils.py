@@ -5,6 +5,7 @@ import numpy as np
 from torch import nn
 
 
+
 def Reg(outputs, xlim, ylim, node_index, parent_node):
     """
         Regularize the output of the projector inside the data-area
@@ -15,6 +16,31 @@ def Reg(outputs, xlim, ylim, node_index, parent_node):
         Returns:
             reg_cost (float): regularization cost
     """
+    layer = len(node_index) - 1
+    alpha = 10*layer # maybe 5 ?
+    ce = nn.CrossEntropyLoss() 
+    reg_cost = 0
+    bbox = [xlim, ylim]
+    def Reg_adam(outputs, bbox):
+        reg_cost = 0
+        for centroid in outputs:
+            for centroid_dim in centroid:
+                for boundary in bbox:
+                    current_prod = 1
+                    min_dist = np.inf
+                    for boundary_dim in boundary:
+                        min_dist = min(min_dist, abs(boundary_dim - centroid_dim))
+                        current_prod *= (boundary_dim - centroid_dim) / (abs(boundary_dim - centroid_dim))
+                    reg_cost += max(0, current_prod) * min_dist  
+        return reg_cost
+    if layer == 0:
+        reg_cost = Reg_adam(outputs, bbox)
+        return reg_cost
+    else:
+        child_label = torch.tensor([int(node_index[-1]) for _ in range(4)], dtype = torch.long) # make tensor
+        reg_cost = alpha * ce(parent_node.student(outputs), child_label) + Reg_adam(outputs, bbox)
+    return reg_cost
+        
     #to alpha to proto einai to varos tis relu
     #meta oso katevaineis layers + 10 to alpha
     layer = len(node_index) - 1
