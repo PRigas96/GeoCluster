@@ -37,7 +37,7 @@ class Ktree:
             if len(node.data) > self.threshold:
                 node.create_student(save_path_index_prefix, plot)
                 node.divide()
-                for i in range(4):
+                for i in range(node.student.n_centroids):
                     queue.put(node.children[i])
 
     def query(self, query_point):
@@ -45,8 +45,15 @@ class Ktree:
         node = self.root
         while not node.isLeaf():
             pred = node.student(query_point)
-            z = pred.argmax()
-            node = node.children[z]
+            # Get an index array of the prediction's max to min values.
+            _, z_ordered = pred.topk(node.student.n_centroids)  # Get the indices of prediction
+            # If the child's data are empty, continue to the next z.
+            # Otherwise, set that child as current node and break (the for loop).
+            for z in z_ordered:
+                if len(node.children[z].data) == 0:
+                    continue
+                node = node.children[z]
+                break
 
         return node.query(query_point)
 
@@ -231,11 +238,10 @@ class Ktree:
         # Create 4 child nodes, where every child stores one of the four clusters produced.
         def divide(self):
             # Retrieve the data that exist in each of the clusters.
-            unique_clusters = torch.unique(self.best_z)
-            for cluster in unique_clusters:
+            for cluster in range(self.student.n_centroids):
                 cluster_data = self.data[self.best_z == cluster]
                 # Create a child node with the corresponding data.
-                self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster.item()}", self.ktree, self))
+                self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster}", self.ktree, self))
 
         def query(self, query_point):
             dists = np.array([Linf(self.data[i], query_point)[0] for i in range(len(self.data))])
