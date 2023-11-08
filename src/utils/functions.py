@@ -6,6 +6,9 @@ from src.metrics import Linf, Linf_array
 from src.utils.data import loadData
 
 
+"""
+These are ebm_utils, getUncertaintyArea and getE. I think you should move them there instead of here.
+"""
 # will sample points on the voronoi edges
 # we will label them and fine tune a student network
 # the sampler will be a module or a function?
