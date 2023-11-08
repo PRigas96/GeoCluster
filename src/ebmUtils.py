@@ -39,6 +39,7 @@ def Reg(outputs, xlim, ylim, node_index, parent_node):
             
             reg_cost = sum of all previous regs in path + current
             current = alpha * ce(student(outputs), where do i  wanna belong to)
+            sum of all previous for the given points. not best_reg
             -----------------------------------------------
             here you use parent_node.best_reg which is a constant. (i think so)
             We calculate all previous ones again, so that it goes where we want it.
@@ -47,9 +48,13 @@ def Reg(outputs, xlim, ylim, node_index, parent_node):
 
         """
 
-        child_label = int(node_index[-1])
-        reg_cost = parent_node.best_reg + alpha * ce(parent_node.student(outputs),
-                                                     torch.tensor([child_label for i in range(4)]))
+        child_label = torch.tensor([int(node_index[-1]) for _ in range(4)], dtype = torch.long) # make tensor
+        # uncomment for debugging
+        #print("child_label: ", child_label)
+        #print("outputs: ", parent_node.student(outputs))
+        #reg_cost = parent_node.best_reg + alpha * ce(parent_node.student(outputs), torch.tensor([child_label for i in range(4)]))
+        # previous =
+        reg_cost = alpha * ce(parent_node.student(outputs), child_label)
 
     return reg_cost
 
