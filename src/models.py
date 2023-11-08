@@ -304,11 +304,9 @@ class Student(nn.Module):
             # make z_ float
             z_ = z_.float()
             z_cost = ce(z_, z_ps_m)
-            # get z_cost where we only penalize the wrong z and not its distance
-            # z_cost = penalty(z, r_z)
-            # F_l.append(F_cost.item())
-            # z_l.append(z_cost)
-            # cost = alpha*F_cost + beta*z_cost
+            # uncomment for debugging
+            # print("z_ is: ", z_)
+            # print("z_ps_m is: ", z_ps_m)
             cost = 100 * z_cost
             cost_l.append(cost.item())
             # backward
