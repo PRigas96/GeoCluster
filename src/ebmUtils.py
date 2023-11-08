@@ -3,9 +3,9 @@ import src.geometry as geo
 from src.metrics import Linf
 import numpy as np
 from torch import nn
-from k_tree import Ktree
 
-def Reg(outputs, xlim, ylim, layer, node):
+
+def Reg(outputs, xlim, ylim, node_index, parent_node):
     """
         Regularize the output of the projector inside the data-area
         
@@ -17,6 +17,7 @@ def Reg(outputs, xlim, ylim, layer, node):
     """
     #to alpha to proto einai to varos tis relu
     #meta oso katevaineis layers + 10 to alpha
+    layer = len(node_index) - 1
     alpha = 10*layer
     ce = nn.CrossEntropyLoss()
     reg_cost = 0
@@ -29,12 +30,13 @@ def Reg(outputs, xlim, ylim, layer, node):
                     current_prod = 1
                     min_dist = np.inf
                     for boundary_dim in boundary:
-                        min_dist = min(min_dist, abs(boundary_dim - centroid_dim)) 
+                        min_dist = min(min_dist, abs(boundary_dim - centroid_dim))
                         current_prod *= (boundary_dim - centroid_dim) / (abs(boundary_dim - centroid_dim))
                     reg_cost += max(0, current_prod) * min_dist
     else:
-        reg_cost = ce()
-        
+        child_label = int(node_index[-1])
+        reg_cost = parent_node.best_reg + alpha * ce(parent_node.student(outputs),
+                                                     torch.tensor([child_label for i in range(4)]))
 
     return reg_cost
 

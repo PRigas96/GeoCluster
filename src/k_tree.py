@@ -70,6 +70,7 @@ class Ktree:
             self.ktree = ktree
             self.index = index
             self.best_z = torch.empty(0)
+            self.best_reg = 0
             self.parent = parent
             self.energies = []
 
@@ -88,7 +89,7 @@ class Ktree:
             """
             
             # Create and train the teacher model.
-            teacher = Teacher(4, 2, 400, len(self.index) - 1, self.parent).to(self.device)
+            teacher = Teacher(4, 2, 400, self.index, self.parent).to(self.device)
             # Populate the optimizer with the model parameters and the learning rate.
             teacher_args = self.ktree.teacher_args.copy()
             teacher_args["optimizer"] = torch.optim.Adam(teacher.parameters(), lr=teacher_args["optimizer_lr"])
@@ -223,8 +224,10 @@ class Ktree:
                 student.plot_accuracy_and_loss(student_args["epochs"])
                 plt.show()
 
+            # Store the trained student and the label predictions and regularised projection from the best epoch.
             self.student = student
             self.best_z = teacher.best_z
+            self.best_reg = teacher.reg_proj_array[teacher.best_epoch]
 
         def create_student_from_config(self, path):
             student = Student(4, 2, 2).to(self.device)

@@ -33,13 +33,13 @@ class Teacher(nn.Module):
         TODO: get pump to work in module 
 
     """
-    def __init__(self, n_centroids, output_dim, latent_size=400, layer=0, node=None):
+    def __init__(self, n_centroids, output_dim, latent_size=400, node_index="0", parent_node=None):
         super(Teacher, self).__init__()
         self.n_centroids = n_centroids
         self.output_dim = output_dim
         self.latent_size = latent_size
-        self.layer = layer
-        self.node = node
+        self.node_index = node_index
+        self.parent_node = parent_node
         # decoder is a linear layer
         self.decoder = nn.Sequential(
             nn.Linear(latent_size, output_dim, bias=False),
@@ -157,7 +157,7 @@ class Teacher(nn.Module):
                 y_pred_std = y_pred_std.to(y_pred.device)
                 y_pred = y_pred + y_pred_std
 
-            reg_proj = Reg(y_pred, x_lim, y_lim, self.layer, self.node)  # regularize projection module
+            reg_proj = Reg(y_pred, x_lim, y_lim, self.node_index, self.parent_node)  # regularize projection module
             if reg_proj == 0:
                 reg_proj = torch.tensor(0.0)
             reg_proj_array.append(reg_proj)  # save reg_proj
@@ -211,6 +211,9 @@ class Teacher(nn.Module):
         self.memory = memory
         self.cost_array = cost_array
 
+
+# Backwards compatibility.
+LVGEBM = Teacher
 
 class Student(nn.Module):
     """
@@ -355,3 +358,7 @@ class Student(nn.Module):
         # add stars to the plot points
         ax1.scatter(self.es, self.acc_l, c='r', s=100, marker='*')
         ax2.scatter(self.es, cost_ll_log, c='royalblue', s=100, marker='*')
+
+
+# Backwards compatibility.
+Voronoi = Student
