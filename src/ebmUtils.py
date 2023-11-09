@@ -41,49 +41,6 @@ def Reg(outputs, xlim, ylim, node_index, parent_node):
         child_label = torch.tensor([int(node_index[-1]) for _ in range(4)], dtype = torch.long) # make tensor
         reg_cost += alpha * ce(parent_node.student(outputs), child_label) + Reg_adam(outputs, bbox)
     return reg_cost
-        
-    #to alpha to proto einai to varos tis relu
-    #meta oso katevaineis layers + 10 to alpha
-    layer = len(node_index) - 1
-    alpha = 10*layer # maybe 5 ?
-    ce = nn.CrossEntropyLoss() 
-    reg_cost = 0
-    bbox = [xlim, ylim]
-
-    if layer == 0:
-        for centroid in outputs:
-            for centroid_dim in centroid:
-                for boundary in bbox:
-                    current_prod = 1
-                    min_dist = np.inf
-                    for boundary_dim in boundary:
-                        min_dist = min(min_dist, abs(boundary_dim - centroid_dim))
-                        current_prod *= (boundary_dim - centroid_dim) / (abs(boundary_dim - centroid_dim))
-                    reg_cost += max(0, current_prod) * min_dist
-    else:
-        """
-            Regularize the output of the predictor inside the data-area
-            
-            reg_cost = sum of all previous regs in path + current
-            current = alpha * ce(student(outputs), where do i  wanna belong to)
-            sum of all previous for the given points. not best_reg
-            -----------------------------------------------
-            here you use parent_node.best_reg which is a constant. (i think so)
-            We calculate all previous ones again, so that it goes where we want it.
-            Otherwise, its just a constant loss.
-            See pdf for more info.
-
-        """
-
-        child_label = torch.tensor([int(node_index[-1]) for _ in range(4)], dtype = torch.long) # make tensor
-        # uncomment for debugging
-        #print("child_label: ", child_label)
-        #print("outputs: ", parent_node.student(outputs))
-        #reg_cost = parent_node.best_reg + alpha * ce(parent_node.student(outputs), torch.tensor([child_label for i in range(4)]))
-        # previous =
-        reg_cost = alpha * ce(parent_node.student(outputs), child_label)
-
-    return reg_cost
 
 def RegLatent(latent):
     """
