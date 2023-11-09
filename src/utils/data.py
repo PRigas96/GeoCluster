@@ -96,24 +96,4 @@ def create_data_3d(numberOfData, x0, y0, z0, width, height, depth, theta, psi, p
                 )
                 break
     return data
-
-
-def loadData_3d(numberOfData):
-    """
-        Load data from data folder
-    
-        Parameters:
-            numberOfData (int): number of data to load
-            
-        Returns:
-            data (np.array): data
-
-        Important:
-            The data must be in the following format:
-            [x0, y0, z0, w, h, d, theta, phi] where:
-            x0, y0: coordinates of the center of the cuboid
-            w, h, z: width, height and depth of the cuboid
-            theta: rotation angle of the square in rad
-            phi: second
-    """
     
