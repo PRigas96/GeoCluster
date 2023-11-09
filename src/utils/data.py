@@ -61,26 +61,26 @@ def create_data_3d(numberOfData, x0, y0, z0, width, height, depth, theta, psi, p
 
         print("creating square ", cnt, "\n")
         #Create the square with random center of mass
-        x0 = random.choice(x0)
-        y0 = random.choice(y0)
-        z0 = random.choice(z0)
+        x = random.choice(x0)
+        y = random.choice(y0)
+        z = random.choice(z0)
 
         #Check if the cuboid is actually a cube or not. Shape it accordingly
         if(cube):
-            width = height = depth = random.choice(width)
+            wid = hei = dep = random.choice(width)
         else:
-            width = random.choice(width)
-            height = random.choice(height)
-            depth = random.choice(depth)
+            wid = random.choice(width)
+            hei = random.choice(height)
+            dep = random.choice(depth)
 
         if(axis_aligned):
-            theta = psi = phi = 0
+            th = ps = ph = 0
         else:
-            theta = random.choice(theta)
-            psi = random.choice(psi)
-            phi = random.choice(phi)
+            th = random.choice(theta)
+            ps = random.choice(psi)
+            ph = random.choice(phi)
 
-        current_cuboid = np.array([x0, y0, z0, width, height, depth, theta, psi, phi])
+        current_cuboid = np.array([x, y, z, wid, hei, dep, th, ps, ph])
         #Check if the current cuboid intersects with any of the cuboids in the data
         if not geo.check_intersection(data, current_cuboid):
             data.append(current_cuboid)
@@ -88,7 +88,7 @@ def create_data_3d(numberOfData, x0, y0, z0, width, height, depth, theta, psi, p
             num_of_collisions = 0
         else:
             num_of_collisions += 1
-            print(num_of_collisions)
+            print("num of collisions is: ", num_of_collisions)
             #Terminate if maximum number of collisions reached
             if num_of_collisions == maximum_num_of_collisions:
                 print(
