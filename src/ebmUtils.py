@@ -37,8 +37,9 @@ def Reg(outputs, xlim, ylim, node_index, parent_node):
         reg_cost = Reg_adam(outputs, bbox)
         return reg_cost
     else:
+        reg_cost += Reg(outputs, xlim, ylim, node_index[:-1], parent_node.parent)
         child_label = torch.tensor([int(node_index[-1]) for _ in range(4)], dtype = torch.long) # make tensor
-        reg_cost = alpha * ce(parent_node.student(outputs), child_label) + Reg_adam(outputs, bbox)
+        reg_cost += alpha * ce(parent_node.student(outputs), child_label) + Reg_adam(outputs, bbox)
     return reg_cost
         
     #to alpha to proto einai to varos tis relu
