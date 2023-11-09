@@ -82,7 +82,7 @@ def create_data_3d(numberOfData, x0, y0, z0, width, height, depth, theta, psi, p
 
         current_cuboid = np.array([x, y, z, wid, hei, dep, th, ps, ph])
         #Check if the current cuboid intersects with any of the cuboids in the data
-        if not geo.check_intersection(data, current_cuboid):
+        if not geo.check_intersection_3d(data, current_cuboid):
             data.append(current_cuboid)
             cnt += 1
             num_of_collisions = 0

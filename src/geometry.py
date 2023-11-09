@@ -117,11 +117,33 @@ def create_cuboid(cuboid):
 
     # Then rotate the vertices according to the given rotation
     for i in range(8):
-        vertices[i] = rotate_point(vertices[i], mass_center, theta)
-        vertices[i] = rotate_point(vertices[i], mass_center, psi)
-        vertices[i] = rotate_point(vertices[i], mass_center, phi)
+        vertices[i] = rotate_point3(vertices[i], mass_center, theta)
+        vertices[i] = rotate_point3(vertices[i], mass_center, psi)
+        vertices[i] = rotate_point3(vertices[i], mass_center, phi)
 
     return vertices
+
+def rotate_point3(point, center, angle):
+    """
+    Rotate a point around a center by a specified angle.
+
+    Parameters:
+        point (list): The coordinates of the point [x, y, z]
+        center (list): The coordinates of the center [x, y, z]
+        angle (float): The angle of rotation in radians.
+
+    Returns:
+        np.array: The new coordinates of the point after rotation.
+    """
+    x_shifted = point[0] - center[0]
+    y_shifted = point[1] - center[1]
+    z_shifted = point[2] - center[2]
+
+    x_new = x_shifted * math.cos(angle) - y_shifted * math.sin(angle) + center[0]
+    y_new = x_shifted * math.sin(angle) + y_shifted * math.cos(angle) + center[1]
+    z_new = z_shifted
+
+    return [x_new, y_new, z_new]
 
 
 
