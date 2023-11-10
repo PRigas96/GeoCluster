@@ -92,3 +92,40 @@ def Linf_array(q, c):
         for j in range(c.shape[0]):
             e[i, j] = Linfp(q[i], c[j])
     return e
+
+def Linf_3d(cuboid, point):
+    dx = [0.0, 0.0]
+    dy = [0.0, 0.0]
+    dz = [0.0, 0.0]
+    distance = 0.0
+    min_dx, min_dy, min_dz = 0.0, 0.0, 0.0
+
+    cuboid_vertices = geo.create_cuboid(cuboid)
+
+    min_coords = np.min(cuboid_vertices, axis=0)
+    max_coords = np.max(cuboid_vertices, axis=0)
+
+    dx[0] = min_coords[0] - point[0]
+    dx[1] = max_coords[0] - point[0]
+    dy[0] = min_coords[1] - point[1]
+    dy[1] = max_coords[1] - point[1]
+    dz[0] = min_coords[2] - point[2]
+    dz[1] = max_coords[2] - point[2]
+
+    if dx[0] * dx[1] <= 0:
+        if dy[0] * dy[1] <= 0:
+            if dz[0] * dz[1] <= 0:
+                return -2
+            else:
+                distance = min(abs(dz[0]), abs(dz[1]))
+        else:
+            min_dy = min(abs(dy[0]), abs(dy[1]))
+            min_dz = min(abs(dz[0]), abs(dz[1]))
+            distance = min_dy if min_dy > min_dz else min_dz
+    else:
+        min_dx = min(abs(dx[0]), abs(dx[1]))
+        min_dy = min(abs(dy[0]), abs(dy[1]))
+        min_dz = min(abs(dz[0]), abs(dz[1]))
+        distance = max(min_dx, min_dy, min_dz)
+
+    return distance

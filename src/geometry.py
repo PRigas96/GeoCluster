@@ -115,11 +115,11 @@ def create_cuboid(cuboid):
     for i in range(8):
         vertices[i] = mass_center + np.multiply(offsets[i], [width / 2, height / 2, depth / 2])
 
-    # Then rotate the vertices according to the given rotation
-    for i in range(8):
-        vertices[i] = rotate_point3(vertices[i], mass_center, theta)
-        vertices[i] = rotate_point3(vertices[i], mass_center, psi)
-        vertices[i] = rotate_point3(vertices[i], mass_center, phi)
+    # Then rotate the vertices according to the given rotation - not needed
+    # for i in range(8):
+    #     vertices[i] = rotate_point3(vertices[i], mass_center, theta)
+    #     vertices[i] = rotate_point3(vertices[i], mass_center, psi)
+    #     vertices[i] = rotate_point3(vertices[i], mass_center, phi)
 
     return vertices
 
