@@ -28,6 +28,33 @@ def loadData(numberOfData):
 
     return data, datapoints
 
+def loadData_3d(numberOfData, numberOfQueryPoints):
+    """
+        Load data from data folder
+    
+        Parameters:
+            numberOfData (int): number of data to load
+            
+        Returns:
+            data (np.array): data
+
+        Important:
+            The data must be in the following format:
+            [x0, y0, z0, w, h, d, theta, psi, phi] where:
+            x0, y0, z0: coordinates of the center of the cuboid
+            w, h, d: width, height and depth of the cuboid
+            theta, psi, phi: rotation angles of the cuboid in rad for every axis
+    """
+    print("Loading data...")
+    ref_data = './data_3d/10000cb/' + str(numberOfData) + 'cb_1_4.npy'
+    ref_query_points = './data/squares/' + str(numberOfQueryPoints) +'/'+ str(numberOfQueryPoints)
+    data = np.load(ref_data)
+    data[:, -1] = np.deg2rad(data[:, -1])
+    datapoints = np.load(ref_query_points+'qp.npy')
+    print("Data loaded.")
+
+    return data, datapoints
+
 def create_data_3d(numberOfData, x0, y0, z0, width, height, depth, theta, psi, phi, cube=True, axis_aligned=True):
     """
         Create numberOfData data
