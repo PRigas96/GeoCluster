@@ -121,7 +121,7 @@ class Ktree:
             """
             
             # Create and train the teacher model.
-            teacher = Teacher(2**self.ktree.dim, self.ktree.dim, 400, self.index, self.parent).to(self.device)
+            teacher = Teacher(2**self.ktree.dim, self.ktree.dim, 400, self.index, self.parent, self.ktree.dim).to(self.device)
             # Populate the optimizer with the model parameters and the learning rate.
             teacher_args = self.ktree.teacher_args.copy()
             teacher_args["optimizer"] = torch.optim.Adam(teacher.parameters(), lr=teacher_args["optimizer_lr"])
@@ -226,7 +226,7 @@ class Ktree:
             Student model.
             """
             # Create and train the student model and assign the best state found during training.
-            student = Student(2**ktree.dim, ktree.dim, ktree.dim).to(self.device)  # initialize the voronoi network
+            student = Student(2**self.ktree.dim, self.ktree.dim, self.ktree.dim).to(self.device)  # initialize the voronoi network
             student_args = self.ktree.student_args
             student.train_(optimizer=torch.optim.Adam(student.parameters(), lr=student_args["optimizer_lr"]),
                            epochs=student_args["epochs"],

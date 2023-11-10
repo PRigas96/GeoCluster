@@ -33,7 +33,7 @@ class Teacher(nn.Module):
         TODO: get pump to work in module 
 
     """
-    def __init__(self, n_centroids, output_dim, latent_size=400, node_index="0", parent_node=None):
+    def __init__(self, n_centroids, output_dim, latent_size=400, node_index="0", parent_node=None, dim=2):
         super(Teacher, self).__init__()
         self.n_centroids = n_centroids
         self.output_dim = output_dim
@@ -75,6 +75,7 @@ class Teacher(nn.Module):
         self.reg_latent_array = None  # saved latent regularizers
         self.memory = None  # saved memory
         self.cost_array = None  # saved costs
+        self.dim = dim
         
     def col_one_hot(self, z):
         # one hot encoding
@@ -166,7 +167,7 @@ class Teacher(nn.Module):
                 reg_latent = RegLatent(self.z_l)  # regularize latent space
                 reg_latent_array.append(reg_latent.item())  # save reg_latent
 
-            e = loss_functional(y_pred.cpu().detach().numpy(), y.cpu().detach().numpy(), self)
+            e = loss_functional(y_pred.cpu().detach().numpy(), y.cpu().detach().numpy(), self, self.dim)
             e.requires_grad = True
 
             F, z = e.min(1)  # get energy and latent
