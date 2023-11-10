@@ -5,13 +5,13 @@ import numpy as np
 from torch import nn
 
 
-
-def Reg(outputs, xlim, ylim, node_index, parent_node):
+def Reg(outputs, bounding_box, node_index, parent_node):
     """
         Regularize the output of the projector inside the data-area
         
         Parameters:
             outputs (list): list of the outputs of the projector
+            bounding_box (list[list]): list of [min, max] limits for each coordinate
             
         Returns:
             reg_cost (float): regularization cost
@@ -20,7 +20,6 @@ def Reg(outputs, xlim, ylim, node_index, parent_node):
     alpha = 10*layer # maybe 5 ?
     ce = nn.CrossEntropyLoss() 
     reg_cost = 0
-    bbox = [xlim, ylim]
     def Reg_adam(outputs, bbox):
         reg_cost = 0
         for centroid in outputs:
@@ -34,12 +33,12 @@ def Reg(outputs, xlim, ylim, node_index, parent_node):
                     reg_cost += max(0, current_prod) * min_dist  
         return reg_cost
     if layer == 0:
-        reg_cost = Reg_adam(outputs, bbox)
+        reg_cost = Reg_adam(outputs, bounding_box)
         return reg_cost
     else:
-        reg_cost += Reg(outputs, xlim, ylim, node_index[:-1], parent_node.parent)
-        child_label = torch.tensor([int(node_index[-1]) for _ in range(4)], dtype = torch.long) # make tensor
-        reg_cost += alpha * ce(parent_node.student(outputs), child_label) + Reg_adam(outputs, bbox)
+        reg_cost += Reg(outputs, bounding_box, node_index[:-1], parent_node.parent)
+        child_label = torch.tensor([int(node_index[-1]) for _ in range(len(outputs))], dtype=torch.long)  # make tensor
+        reg_cost += alpha * ce(parent_node.student(outputs), child_label)
     return reg_cost
 
 def RegLatent(latent):

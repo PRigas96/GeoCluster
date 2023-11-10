@@ -12,7 +12,7 @@ These are ebm_utils, getUncertaintyArea and getE. I think you should move them t
 # will sample points on the voronoi edges
 # we will label them and fine tune a student network
 # the sampler will be a module or a function?
-def getUncertaintyArea(outputs, N, M, epsilon, x_area, y_area, model):
+def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
     """
         Sample N points in the area defined by x_area and y_area
 
@@ -21,24 +21,22 @@ def getUncertaintyArea(outputs, N, M, epsilon, x_area, y_area, model):
             N: number of points to sample
             M: number of points to return
             epsilon: the epsilon ball
-            x_area: the x area to sample from
-            y_area: the y area to sample from
-            model: the teacher network
+            bounding_box (list[list]): list of [min, max] limits for each coordinate
 
         Returns:
             m_points: the M points that are in the uncertainty area
 
         #TODO: Create more clever UN sampling
     """
-    # first lets sample N points in the spaces defined by x_area and y_area
-    n_points = torch.zeros(N ** 2, 2)
-    x_p = np.linspace(x_area[0], x_area[1], N)
-    y_p = np.linspace(y_area[0], y_area[1], N)
-    scale = torch.tensor([x_area[1] - x_area[0], y_area[1] - y_area[0]])
+    dim = outputs.shape[1]
+    # first lets sample N points in the spaces defined by the bounding box.
+    n_points = torch.zeros(N ** dim, dim)
+    scale = torch.tensor([area[1] - area[0] for area in bounding_box])
     scale = torch.max(scale)
+    spaces = [np.linspace(area[0], area[1], N) for area in bounding_box]
     print(f'scale is {scale}')
-    for i in range(N ** 2):
-        n_points[i] = torch.tensor([x_p[i % N], y_p[i // N]])
+    for i in range(N ** dim):
+        n_points[i] = torch.tensor([spaces[d][(i // (N ** d)) % N] for d in range(dim)])
     # now lets get the uncertainty area for each point
     E = Linf_array(n_points, torch.tensor(outputs))
     # get the min distance

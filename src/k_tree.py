@@ -111,10 +111,10 @@ class Ktree:
             if len(self.data) == 0:
                 return
 
-            # First calculate the area of the data.
+            # First calculate the bounding box of the data.
             size_sup = 2 * max(self.data[:, 2])
-            x_lim = [m.floor(min(self.data[:, 0] - size_sup)), m.ceil(max(self.data[:, 0] + size_sup))]
-            y_lim = [m.floor(min(self.data[:, 1] - size_sup)), m.ceil(max(self.data[:, 1] + size_sup))]
+            bounding_box = [[m.floor(min(self.data[:, i] - size_sup)), m.ceil(max(self.data[:, i] + size_sup))]
+                            for i in range(self.ktree.dim)]
 
             """
             Teacher model.
@@ -128,7 +128,7 @@ class Ktree:
             del teacher_args["optimizer_lr"]
             # Train the teacher model and assign the best state found during training.
             teacher.train_(train_data=torch.from_numpy(self.data).float().to(self.device),
-                           x_lim=x_lim, y_lim=y_lim, **teacher_args)
+                           bounding_box=bounding_box, **teacher_args)
             teacher.load_state_dict(teacher.best_model_state)
             
             # Save the model and some training results.
@@ -162,8 +162,8 @@ class Ktree:
                                                                         fs=2 * len(signal))
                 pt.plot_AM_dem(upper_signal, lower_signal, filtered_signal, signal, teacher.best_epoch)
                 # Plot the best model with the best outputs.
-                manifold = pt.createManifold(teacher, teacher.best_outputs.cpu(), x_lim=x_lim, y_lim=y_lim)
-                pt.plotManifold(self.data, manifold, teacher.best_outputs.cpu(), x_lim, y_lim)
+                manifold = pt.createManifold(teacher, teacher.best_outputs.cpu(), x_lim=bounding_box[0], y_lim=bounding_box[1])
+                pt.plotManifold(self.data, manifold, teacher.best_outputs.cpu(), bounding_box[0], bounding_box[1])
                 plt.show()
 
             """
@@ -171,7 +171,7 @@ class Ktree:
             """
             # Calculate the Uncertainty Area.
             m_points = getUncertaintyArea(outputs=teacher.best_outputs.cpu().detach().numpy(),
-                                          x_area=x_lim, y_area=y_lim, model=None, **self.ktree.un_args)
+                                          bounding_box=bounding_box, **self.ktree.un_args)
             m_points = np.array(m_points)
             
             # Plot the Uncertainty Area.
@@ -219,7 +219,7 @@ class Ktree:
                 plt_bo = teacher.best_outputs.cpu().detach().numpy()
                 c = np.linspace(0, plt_bo.shape[0], plt_bo.shape[0])
                 ax.scatter(plt_bo[:, 0], plt_bo[:, 1], c=c, s=200)
-                pt.plot_data_on_manifold(fig, ax, self.data, size=10, limits=x_lim + y_lim)
+                pt.plot_data_on_manifold(fig, ax, self.data, size=10, limits=bounding_box[0] + bounding_box[1])
                 plt.show()
 
             """
