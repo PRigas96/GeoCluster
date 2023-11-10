@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 from src.ebmUtils import loss_functional
-from src.metrics import Linf, Linf_array
+from src.metrics import Linf, Linf_3d, Linf_array
 from src.utils.data import loadData
 
 
@@ -151,8 +151,12 @@ def NearestNeighbour(qp, sq):
     """
     d_nn = np.inf
     z_nn = 0
+    dim = qp.shape[0]
     for i, square in enumerate(sq):
-        d_nn_sq, _, _ = Linf(square, qp)
+        if dim == 2:
+            d_nn_sq, _, _ = Linf(square, qp)
+        else:
+            d_nn_sq = Linf_3d(square, qp)
         if d_nn_sq <= d_nn:
             d_nn = d_nn_sq
             z_nn = i

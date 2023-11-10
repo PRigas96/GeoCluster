@@ -112,9 +112,9 @@ def Linf_3d(cuboid, point):
     dz[0] = min_coords[2] - point[2]
     dz[1] = max_coords[2] - point[2]
 
-    if dx[0] * dx[1] <= 0:
-        if dy[0] * dy[1] <= 0:
-            if dz[0] * dz[1] <= 0:
+    if dx[0] * dx[1] < 0:
+        if dy[0] * dy[1] < 0:
+            if dz[0] * dz[1] < 0:
                 return -2
             else:
                 distance = min(abs(dz[0]), abs(dz[1]))
