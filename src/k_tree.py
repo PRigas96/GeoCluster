@@ -3,7 +3,7 @@ import numpy as np
 from src.models import Teacher, Student
 from queue import Queue
 from src.utils.functions import getUncertaintyArea, getE, NearestNeighbour
-from src.metrics import Linf
+from src.metrics import Linf, Linf_3d
 import math as m
 import matplotlib.pyplot as plt
 from src.utils import plot_tools as pt
@@ -112,7 +112,8 @@ class Ktree:
                 return
 
             # First calculate the bounding box of the data.
-            size_sup = 2 * max(self.data[:, 2])
+            # The first "dim" columns have the centers, the second "dim" columns have the sizes.
+            size_sup = 2 * np.max(self.data[:, self.ktree.dim:2 * self.ktree.dim])
             bounding_box = [[m.floor(min(self.data[:, i] - size_sup)), m.ceil(max(self.data[:, i] + size_sup))]
                             for i in range(self.ktree.dim)]
 
@@ -279,6 +280,9 @@ class Ktree:
                 self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster}", self.ktree, self))
 
         def query(self, query_point):
-            dists = np.array([Linf(self.data[i], query_point)[0] for i in range(len(self.data))])
+            if self.ktree.dim == 2:
+                dists = np.array([Linf(self.data[i], query_point)[0] for i in range(len(self.data))])
+            else:
+                dists = np.array([Linf_3d(self.data[i], query_point) for i in range(len(self.data))])
             min_dist_index = dists.argmin()
             return self.data[min_dist_index]
