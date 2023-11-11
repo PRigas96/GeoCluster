@@ -242,7 +242,7 @@ class Ktree:
             student_args = self.ktree.student_args
             width = student_args["width"]
             depth = student_args["depth"]
-            student = Student(2**self.ktree.dim, self.ktree.dim, self.ktree.dim, width, depth).to(self.device)  # initialize the voronoi network
+            student = Student(n_of_centroids, self.ktree.dim, self.ktree.dim, width, depth).to(self.device)  # initialize the voronoi network
             student.train_(optimizer=torch.optim.Adam(student.parameters(), lr=student_args["optimizer_lr"]),
                            epochs=student_args["epochs"],
                            device=self.device,
