@@ -65,8 +65,9 @@ class Ktree:
 
             # Create the student and divide the node if the data has size less than the defined threshold.
             if len(node.data) > self.threshold:
+                print()
+                print("="*20)
                 print(f"Creating student for node {node.index} that has {len(node.data)} data, which is more than the threshold {self.threshold}.")
-
                 node.create_student(save_path_index_prefix, plot)
                 node.divide()
                 for i in range(node.student.n_centroids):

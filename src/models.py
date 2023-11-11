@@ -136,6 +136,7 @@ class Teacher(nn.Module):
                 bound_for_saving: bound for saving the data
                 bounding_box (list[list]): list of [min, max] limits for each coordinate
         """
+        print("="*20)
         print("Training Teacher Model")
         p_times = epochs // times  # print times
         y = train_data
@@ -153,6 +154,8 @@ class Teacher(nn.Module):
             y_pred = self(self.z)
             # add pump
             if epoch % f_clk == 0 and epoch != 0:
+                if len(train_data)> 100:
+                    scale = len(train_data)^(-1)
                 y_pred_std = torch.randn(y_pred.shape) * memory[-1] * scale
                 y_pred_std = y_pred_std.to(y_pred.device)
                 y_pred = y_pred + y_pred_std
@@ -172,7 +175,24 @@ class Teacher(nn.Module):
             F, z = e.min(1)  # get energy and latent
             memory.append(torch.sum(F).item())  # save energy to memory
 
-            cost = torch.sum(F) + alpha * reg_proj + beta * reg_latent  # add regularizers
+            # create a repulsive force between the centroids
+            F_r = torch.zeros(self.n_centroids, self.n_centroids)
+            for i in range(self.n_centroids):
+                for j in range(self.n_centroids):
+                    if i != j:
+                        F_r[i, j] = torch.max(torch.abs(self.z[i] - self.z[j]))
+            # if 1 centroid is near another i wanna penaliize it
+            cost = torch.sum(F) + 10*alpha*len(y) * reg_proj + beta * reg_latent  # add regularizers
+            # i wanna penalize small F_r, the smaller the more penalized
+            
+            fr = torch.zeros(1)
+            for i in range(self.n_centroids):
+                for j in range(self.n_centroids):
+                    if i != j:
+                        fr += 1/F_r[i, j]
+            cost += 0.5*torch.sum(fr)
+
+            #cost -= len(y)/10 * 0.5*torch.sum(F_r) 
             cost_array.append(cost.item())  # save cost
 
             # backward
@@ -195,6 +215,7 @@ class Teacher(nn.Module):
                       "Training loss: {:.5f}.. ".format(cost.item()),
                       "Reg Proj: {:.5f}.. ".format(reg_proj.item()),
                       "Reg Latent: {:.5f}.. ".format(reg_latent.item()),
+                      "Repulsive: {:.5f}.. ".format(fr.item()),
                       "Memory: {:.5f}.. ".format(torch.sum(F).item()),
                       "Cost: {:.5f}.. ".format(cost.item()))
 
@@ -286,6 +307,7 @@ class Student(nn.Module):
                 qp: qp points
                 F_ps: ???
         """
+        print("="*20)
         print("Training Student Model")
         F_l = []
         z_l = []

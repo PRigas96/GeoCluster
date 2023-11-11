@@ -28,6 +28,9 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
 
         #TODO: Create more clever UN sampling
     """
+    print("="*20)
+    print("getUncertaintyArea")
+    print(f'Ouputs are {outputs}')
     dim = outputs.shape[1]
     # first lets sample N points in the spaces defined by the bounding box.
     n_points = torch.zeros(N ** dim, dim)
@@ -49,19 +52,21 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
         # now lets get the uncertainty area for each point
         z = E.argmin(1)
         print(f'z is {z.shape}')
-        try:
-            import matplotlib.pyplot as plt
-            from mpl_toolkits.mplot3d import Axes3D
-            fig = plt.figure()
-            ax = fig.add_subplot(111, projection='3d')
-            ax.scatter(n_points[:, 0], n_points[:, 1], n_points[:, 2],c=z,cmap='viridis', marker='o', s = 1,alpha = 0.3)
-            ax.set_xlabel('X Label')
-            ax.set_ylabel('Y Label')
-            ax.set_zlabel('Z Label')
-            plt.show()
-        except ImportError:
-            print("Matplotlib not installed. Cannot plot.")
-            return
+        debug = False
+        if debug:   
+            try:
+                import matplotlib.pyplot as plt
+                from mpl_toolkits.mplot3d import Axes3D
+                fig = plt.figure()
+                ax = fig.add_subplot(111, projection='3d')
+                ax.scatter(n_points[:, 0], n_points[:, 1], n_points[:, 2],c=z,cmap='viridis', marker='o', s = 1,alpha = 0.3)
+                ax.set_xlabel('X Label')
+                ax.set_ylabel('Y Label')
+                ax.set_zlabel('Z Label')
+                plt.show()
+            except ImportError:
+                print("Matplotlib not installed. Cannot plot.")
+                return
     # get the min distance
     m_points = []
     m = 0
@@ -82,7 +87,7 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
                 cnt += 1
         if cnt == 1:
             # eps = eps * (1*F1/300 + 200/300) # new eps
-            eps = eps * (1 / (F1 * 0.0001))
+            eps = eps * (1 / (F1 * 0.0001*(10*dim)))
             # only 2 centroids are close => 1/F1
             tmp = False
             for j in range(E1.shape[0]):
@@ -203,12 +208,7 @@ def Accuracy(F, z, F_sq, z_sq, qp, sq):
     """
     acc = 0
     for i in range(qp.shape[0]):
-        # find nn of qp[i]
         d_nn, z_nn = NearestNeighbour(qp[i], sq)
-        # print("d_nn: ", d_nn)
-        # print("z_nn: ", z_nn)
-        # print("z[i]: ", z[i])
-        # print("z_sq[z_nn]: ", z_sq[z_nn])
         if z_sq[z_nn] == z[i]:
             acc += 1
     return acc / qp.shape[0]
