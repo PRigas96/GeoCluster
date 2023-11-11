@@ -105,6 +105,9 @@ class Ktree:
             self.best_reg = 0
             self.parent = parent
             self.energies = []
+            self.un_points = None
+            self.un_labels = None
+            self.un_energy = None
 
         def create_student(self, save_path_prefix="", plot=False):
             # If the node has no data, do nothing.
@@ -116,13 +119,18 @@ class Ktree:
             size_sup = 2 * np.max(self.data[:, self.ktree.dim:2 * self.ktree.dim])
             bounding_box = [[m.floor(min(self.data[:, i] - size_sup)), m.ceil(max(self.data[:, i] + size_sup))]
                             for i in range(self.ktree.dim)]
+            print(f"Bounding box for node {self.index}: {bounding_box}")
 
             """
             Teacher model.
             """
             
             # Create and train the teacher model.
-            teacher = Teacher(2**self.ktree.dim, self.ktree.dim, 400, self.index, self.parent, self.ktree.dim).to(self.device)
+            n_of_centroids = self.ktree.teacher_args["number_of_centroids"]
+            print(f"Creating teacher for node {self.index} with {n_of_centroids} centroids.")
+            if n_of_centroids == 0:
+                n_of_centroids = 2**self.ktree.dim
+            teacher = Teacher(n_of_centroids, self.ktree.dim, 400, self.index, self.parent, self.ktree.dim).to(self.device)
             # Populate the optimizer with the model parameters and the learning rate.
             teacher_args = self.ktree.teacher_args.copy()
             teacher_args["optimizer"] = torch.optim.Adam(teacher.parameters(), lr=teacher_args["optimizer_lr"])
@@ -174,6 +182,7 @@ class Ktree:
             m_points = getUncertaintyArea(outputs=teacher.best_outputs.cpu().detach().numpy(),
                                           bounding_box=bounding_box, **self.ktree.un_args)
             m_points = np.array(m_points)
+            self.un_points = m_points
             
             # Plot the Uncertainty Area.
             if plot:
@@ -207,6 +216,8 @@ class Ktree:
                     qpoint = qp[i].cpu().detach().numpy()
                     F_ps[i, j], z_ps[i, j] = torch.tensor(NearestNeighbour(qpoint, pseudo_clusters[j]))
             print(f"Labeled all {outputs_shape[0]}/{outputs_shape[0]} points.")
+            self.un_labels = z_ps
+            self.un_energy = F_ps
             
             # Plot the labels.
             if plot:
@@ -227,13 +238,17 @@ class Ktree:
             Student model.
             """
             # Create and train the student model and assign the best state found during training.
-            student = Student(2**self.ktree.dim, self.ktree.dim, self.ktree.dim).to(self.device)  # initialize the voronoi network
+            
             student_args = self.ktree.student_args
+            width = student_args["width"]
+            depth = student_args["depth"]
+            student = Student(2**self.ktree.dim, self.ktree.dim, self.ktree.dim, width, depth).to(self.device)  # initialize the voronoi network
             student.train_(optimizer=torch.optim.Adam(student.parameters(), lr=student_args["optimizer_lr"]),
                            epochs=student_args["epochs"],
                            device=self.device,
                            qp=qp,
-                           F_ps=F_ps)
+                           F_ps=F_ps
+                           )
             student.load_state_dict(student.best_vor_model_state)
             
             # Save the model and some training results.

@@ -118,8 +118,8 @@ class Teacher(nn.Module):
         self.c = y_hat
 
         return y_hat
-
-    def train_(self, optimizer, epochs, times, train_data, bounding_box, alpha=10, beta=10, f_clk=2, scale=1e-2,
+# debugging number of centroids
+    def train_(self, optimizer, epochs, times, train_data, bounding_box,number_of_centroids, alpha=10, beta=10, f_clk=2, scale=1e-2,
                bound_for_saving=6000):
         """
             Train the teacher model
@@ -230,19 +230,32 @@ class Student(nn.Module):
         Returns:
             forward: predicted energy
     """
-    def __init__(self, n_centroids, input_dim, output_dim):
+    def __init__(self, n_centroids, input_dim, output_dim, width, depth):
         super(Student, self).__init__()
         self.n_centroids = n_centroids
         self.input_dim = input_dim
         self.output_dim = output_dim
         # inputs are datapoints and outputs are energies
-        self.predictor = nn.Sequential(
+        # initialize self.predictor
+        layers = []
+        for i in range(depth):
+            if i == 0:
+                layers.append(nn.Linear(input_dim, width))
+                layers.append(nn.ReLU())
+            elif i == depth - 1:
+                layers.append(nn.Linear(width, n_centroids))
+            else:
+                layers.append(nn.Linear(width, width))
+                layers.append(nn.ReLU())
+
+        self.predictor = nn.Sequential(*layers)
+        
+        self.predictor_before = nn.Sequential(
             nn.Linear(input_dim, 100),
             nn.ReLU(),
             nn.Linear(100, 100),
             nn.ReLU(),
             nn.Linear(100, n_centroids)
-
         )
 
         # Store training variables.
@@ -260,7 +273,9 @@ class Student(nn.Module):
                epochs,
                device,
                qp,
-               F_ps):
+               F_ps,
+               times = 10
+               ):
         """
             Train the student model
 
@@ -285,6 +300,8 @@ class Student(nn.Module):
         es = []
         best_vor_cost = torch.inf
         best_vor_model_state = None
+        times = 10
+        at = epochs // times
         for epoch in range(epochs):
             # get outputs
             outputs = self(qp)
@@ -316,7 +333,7 @@ class Student(nn.Module):
             if cost < best_vor_cost:
                 best_vor_cost = cost
                 best_vor_model_state = deepcopy(self.state_dict())
-            if epoch % 2000 == 0:
+            if epoch % at == 0:
                 # lets check acc
                 acc = 0
                 for i in range(qp.shape[0]):

@@ -37,8 +37,31 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
     print(f'scale is {scale}')
     for i in range(N ** dim):
         n_points[i] = torch.tensor([spaces[d][(i // (N ** d)) % N] for d in range(dim)])
-    # now lets get the uncertainty area for each point
+    # plot n_points
+ 
     E = Linf_array(n_points, torch.tensor(outputs))
+    if dim == 3:
+        # plot dx, dy, dz in n_points
+        dx = n_points[:, 0].max() - n_points[:, 0].min()
+        dy = n_points[:, 1].max() - n_points[:, 1].min()
+        dz = n_points[:, 2].max() - n_points[:, 2].min()
+        print(f'dx is {dx}, dy is {dy}, dz is {dz}')
+        # now lets get the uncertainty area for each point
+        z = E.argmin(1)
+        print(f'z is {z.shape}')
+        try:
+            import matplotlib.pyplot as plt
+            from mpl_toolkits.mplot3d import Axes3D
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            ax.scatter(n_points[:, 0], n_points[:, 1], n_points[:, 2],c=z,cmap='viridis', marker='o', s = 1,alpha = 0.3)
+            ax.set_xlabel('X Label')
+            ax.set_ylabel('Y Label')
+            ax.set_zlabel('Z Label')
+            plt.show()
+        except ImportError:
+            print("Matplotlib not installed. Cannot plot.")
+            return
     # get the min distance
     m_points = []
     m = 0
@@ -47,7 +70,7 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
     tmp = False
     print('Processing...')
     flag_temp = False
-    while m <= M and i < N ** 2:
+    while m <= M and i < N ** dim:
         E1 = E[i]
         F1 = E1.min()
         # diff should be E1 - F1 for all points (E1 is a vector ) and F1 is a scalar
