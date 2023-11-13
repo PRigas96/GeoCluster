@@ -131,7 +131,23 @@ class Ktree:
             print(f"Creating teacher for node {self.index} with {n_of_centroids} centroids.")
             if n_of_centroids == 0:
                 n_of_centroids = 2**self.ktree.dim
-            teacher = Teacher(n_of_centroids, self.ktree.dim, 400, self.index, self.parent, self.ktree.dim).to(self.device)
+
+            encoder_width = self.ktree.teacher_args["encoder_width"]
+            encoder_depth = self.ktree.teacher_args["encoder_depth"]
+            predictor_width = self.ktree.teacher_args["predictor_width"]
+            predictor_depth = self.ktree.teacher_args["predictor_depth"]
+            latent_size = self.ktree.teacher_args["latent_size"]
+            latent_size = len(self.data)// 5
+            teacher = Teacher(n_of_centroids,
+                              self.ktree.dim,
+                              encoder_width,
+                              encoder_depth,
+                              predictor_width,
+                              predictor_depth,
+                              latent_size, 
+                              self.index, 
+                              self.parent, 
+                              self.ktree.dim).to(self.device)
             # Populate the optimizer with the model parameters and the learning rate.
             teacher_args = self.ktree.teacher_args.copy()
             teacher_args["optimizer"] = torch.optim.Adam(teacher.parameters(), lr=teacher_args["optimizer_lr"])

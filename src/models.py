@@ -33,7 +33,17 @@ class Teacher(nn.Module):
         TODO: get pump to work in module 
 
     """
-    def __init__(self, n_centroids, output_dim, latent_size=400, node_index="0", parent_node=None, dim=2):
+    def __init__(self, 
+                 n_centroids,
+                 output_dim, 
+                 encoder_width,
+                 encoder_depth,
+                 projector_width,
+                 projector_depth,
+                 latent_size=400, 
+                 node_index="0", 
+                 parent_node=None, 
+                 dim=2):
         super(Teacher, self).__init__()
         self.n_centroids = n_centroids
         self.output_dim = output_dim
@@ -41,14 +51,37 @@ class Teacher(nn.Module):
         self.node_index = node_index
         self.parent_node = parent_node
         # decoder is a linear layer
-        self.decoder = nn.Sequential(
-            nn.Linear(latent_size, output_dim, bias=False),
-        )
+        enc_layer = []
+        for i in range(encoder_depth):
+            if i == 0:
+                enc_layer.append(nn.Linear(latent_size, encoder_width,bias=False))
+                enc_layer.append(nn.ReLU())
+            elif i == encoder_depth - 1:
+                enc_layer.append(nn.Linear(encoder_width, output_dim,bias=False))
+            else:
+                enc_layer.append(nn.Linear(encoder_width, encoder_width,bias=False))
+                enc_layer.append(nn.ReLU())
+        self.encoder= nn.Sequential(*enc_layer)
+        #self.encoder = nn.Sequential(nn.Linear(latent_size, output_dim, bias=False),)
         # init z to one-hot descrete latent variable
         self.z = nn.Parameter(
             Dirichlet(torch.ones(n_centroids)).sample((latent_size,)).T
             , requires_grad=True
         )
+        predictor_layer = []
+        for i in range(projector_depth):
+            if i == 0:
+                predictor_layer.append(nn.Linear(n_centroids, projector_width//2))
+                predictor_layer.append(nn.ReLU())
+                predictor_layer.append(nn.Linear(projector_width//2, projector_width))
+            elif i == projector_depth - 1:
+                predictor_layer.append(nn.Linear(projector_width, n_centroids))
+            else:
+                predictor_layer.append(nn.Linear(projector_width, projector_width))
+                predictor_layer.append(nn.ReLU())
+        self.predictor = nn.Sequential(*predictor_layer)
+                
+
         self.projector = nn.Sequential(
             nn.Linear(n_centroids, n_centroids *10),
             nn.ReLU(),
@@ -97,7 +130,7 @@ class Teacher(nn.Module):
             z = self.z
         else:
             z = torch.bernoulli(self.z)
-        y = self.decoder(z)
+        y = self.encoder(z)
         return y, z
 
     def pump(self):
@@ -106,7 +139,7 @@ class Teacher(nn.Module):
     def forward(self, z):
         z = self.col_one_hot(z)
         # make z dtype float
-        y = self.decoder(z)
+        y = self.encoder(z)
         self.z_l = y
         # make y fuzzy
         y_std = torch.randn(y.shape)* 1
@@ -114,12 +147,12 @@ class Teacher(nn.Module):
         y = y + y_std
         self.z_fuzzy = y
         # project y_hat to space of y
-        y_hat = self.projector(y.T).T
+        y_hat = self.predictor(y.T).T
         self.c = y_hat
 
         return y_hat
 # debugging number of centroids
-    def train_(self, optimizer, epochs, times, train_data, bounding_box,number_of_centroids, alpha=10, beta=10, f_clk=2, scale=1e-2,
+    def train_(self, optimizer, epochs, times, train_data, bounding_box,number_of_centroids,latent_size,encoder_width,encoder_depth,predictor_width,predictor_depth, alpha=10, beta=10,gamma=10,delta=0.1, f_clk=2, scale=1e-2,
                bound_for_saving=6000):
         """
             Train the teacher model
@@ -152,11 +185,13 @@ class Teacher(nn.Module):
         for epoch in range(epochs):
             # forward
             y_pred = self(self.z)
+            k = y_pred.shape[0]
+            dim = y_pred.shape[1]
             # add pump
             if epoch % f_clk == 0 and epoch != 0:
                 if len(train_data)> 100:
-                    scale = len(train_data)^(-1)
-                y_pred_std = torch.randn(y_pred.shape) * memory[-1] * scale
+                    scale = len(train_data)^(-1) 
+                y_pred_std = torch.randn(y_pred.shape) * memory[-1] * scale * delta
                 y_pred_std = y_pred_std.to(y_pred.device)
                 y_pred = y_pred + y_pred_std
 
@@ -173,7 +208,9 @@ class Teacher(nn.Module):
             e.requires_grad = True
 
             F, z = e.min(1)  # get energy and latent
-            memory.append(torch.sum(F).item())  # save energy to memory
+            memory.append(torch.mean(abs(F)).item())  # save energy to memory
+            #print("Memory: ", memory[-1] )
+            
 
             # create a repulsive force between the centroids
             F_r = torch.zeros(self.n_centroids, self.n_centroids)
@@ -182,7 +219,10 @@ class Teacher(nn.Module):
                     if i != j:
                         F_r[i, j] = torch.max(torch.abs(self.z[i] - self.z[j]))
             # if 1 centroid is near another i wanna penaliize it
-            cost = torch.sum(F) + 10*alpha*len(y) * reg_proj + beta * reg_latent  # add regularizers
+            cost = torch.mean(abs(F)) + alpha* reg_proj + beta * reg_latent  # add regularizers
+
+
+            #cost = torch.mean(F) + 10*alpha*len(y) * reg_proj + beta * reg_latent  # add regularizers
             # i wanna penalize small F_r, the smaller the more penalized
             
             fr = torch.zeros(1)
@@ -190,7 +230,8 @@ class Teacher(nn.Module):
                 for j in range(self.n_centroids):
                     if i != j:
                         fr += 1/F_r[i, j]
-            cost += 0.5*torch.sum(fr)
+            f_rep =  gamma * 0.5*torch.sum(fr) * dim
+            cost += f_rep
 
             #cost -= len(y)/10 * 0.5*torch.sum(F_r) 
             cost_array.append(cost.item())  # save cost
@@ -210,14 +251,23 @@ class Teacher(nn.Module):
                 p_p.append(y_pred)
                 p_c.append(cost)
             if (epoch + 1) % p_times == 0:
+                print("="*20)
+                #print("Outputs: ", y_pred)
+                #print("torch.mean(F): ", torch.mean(F).item())
+                #print("reg_proj: ", alpha*reg_proj.item())
+                #print("reg_latent: ", beta * reg_latent.item())
+                #print("Repulsive: ", f_rep.item())
+            
                 # print
-                print("Epoch: {}/{}.. ".format(epoch + 1, epochs),
-                      "Training loss: {:.5f}.. ".format(cost.item()),
-                      "Reg Proj: {:.5f}.. ".format(reg_proj.item()),
-                      "Reg Latent: {:.5f}.. ".format(reg_latent.item()),
-                      "Repulsive: {:.5f}.. ".format(fr.item()),
-                      "Memory: {:.5f}.. ".format(torch.sum(F).item()),
-                      "Cost: {:.5f}.. ".format(cost.item()))
+                print("Epoch: {}/{}.. \n".format(epoch + 1, epochs),
+                      "Training loss: {:.5f}.. \n".format(cost.item()),
+                      "torch.mean(F): {:.5f}.. \n".format(torch.mean(F).item()),
+                      "Reg Proj: {:.5f}.. \n".format(alpha*reg_proj.item()),
+                      "Reg Latent: {:.5f}.. \n".format(beta*reg_latent.item()),
+                      "Repulsive: {:.5f}.. \n".format(f_rep.item()),
+                      "Memory: {:.5f}.. \n".format(memory[-1] * scale * 0.01),
+                      "Output: \n", y_pred.detach().numpy(),
+                )
 
         # Store the training variables to the model.
         self.best_model_state = best_model_state
