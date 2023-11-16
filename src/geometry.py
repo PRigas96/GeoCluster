@@ -1,6 +1,9 @@
 import numpy as np
 import math
 import random  # if needed
+import torch
+import torch.nn.functional as F
+
 
 
 def IsPointInsidePoly(vertex, poly_vertices):
@@ -41,8 +44,32 @@ def IsPointInsidePoly(vertex, poly_vertices):
 # the square is represented as a vector of
 # center of mass, edge size and rotation
 
-
 def create_square2(square):
+    x_center, y_center, size, rotation = square
+
+    size_half = size / 2
+
+    # Coordinates of vertices without rotation
+    vertices = torch.tensor([
+        [x_center - size_half, y_center - size_half],
+        [x_center - size_half, y_center + size_half],
+        [x_center + size_half, y_center + size_half],
+        [x_center + size_half, y_center - size_half]
+    ], dtype=torch.float32)
+
+    # Rotate the vertices according to the given rotation
+    rotation = torch.tensor(rotation, dtype=torch.float32)
+    rotation_matrix = torch.tensor([
+        [torch.cos(rotation), -torch.sin(rotation)],
+        [torch.sin(rotation), torch.cos(rotation)]
+    ])
+
+    rotated_vertices = torch.mm(vertices - torch.tensor([x_center, y_center]), rotation_matrix.t()) + torch.tensor([x_center, y_center])
+
+    return rotated_vertices
+
+
+def create_square2_np(square):
     """
         Create a square given its center of mass, edge size and rotation
 

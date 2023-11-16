@@ -2,6 +2,7 @@
 import numpy as np
 import torch
 from src import geometry as geo
+
 # define Linf() function for a square and a point
 def Linf(square, point):
     """
@@ -62,7 +63,7 @@ def Linf(square, point):
 
 
 # define simplified Linf() function for a square and a point
-def Linf_(square, q_point):
+def Linf_np(square, q_point):
     """
         Compute the simplified Linf metric for a square and a point
 
@@ -129,3 +130,29 @@ def Linf_3d(cuboid, point):
         distance = max(min_dx, min_dy, min_dz)
 
     return distance
+
+
+def Linf_simple(square, q_point):
+    """
+        Compute the simplified Linf metric for a square and a point
+
+        Parameters:
+            square (torch.Tensor): square coordinates
+            q_point (torch.Tensor): point coordinates
+
+        Returns:
+            min_dist (float): minimum distance between the point and the square, 0 if inside
+
+    """
+    square = geo.create_square2(square)
+    is_inside = geo.IsPointInsidePoly(q_point, square)
+
+    if is_inside:
+        return 0.0
+
+    min_dist = float('inf')
+    for point in square:
+        dist = torch.max(torch.abs(point - q_point))
+        if dist < min_dist:
+            min_dist = dist
+    return min_dist

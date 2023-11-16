@@ -1,6 +1,6 @@
 import torch
 import src.geometry as geo
-from src.metrics import Linf, Linf_3d
+from src.metrics import Linf, Linf_3d, Linf_simple
 import numpy as np
 from torch import nn
 
@@ -88,7 +88,7 @@ def loss_functional(y_hat, y_target, model, dim=2):
             # square = torch.tensor(square)
             #y_hat[j] = y_hat[j].clone().detach().requires_grad_(True)
             if(dim == 2):
-                loss[i, j], _, _ = Linf(square, y_hat[j]) # compute loss
+                loss[i, j] = Linf_simple(square, y_hat[j]) # compute loss
             else:
                 loss[i, j] = Linf_3d(square, y_hat[j]) # compute loss
     return loss 

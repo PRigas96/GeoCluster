@@ -55,7 +55,7 @@ class Teacher(nn.Module):
         for i in range(encoder_depth):
             if i == 0:
                 enc_layer.append(nn.Linear(latent_size, encoder_width,bias=False))
-                enc_layer.append(nn.ReLU())
+                #enc_layer.append(nn.ReLU())
             elif i == encoder_depth - 1:
                 enc_layer.append(nn.Linear(encoder_width, output_dim,bias=False))
             else:
@@ -204,8 +204,8 @@ class Teacher(nn.Module):
                 reg_latent = RegLatent(self.z_l)  # regularize latent space
                 reg_latent_array.append(reg_latent.item())  # save reg_latent
 
-            e = loss_functional(y_pred.cpu().detach().numpy(), y.cpu().detach().numpy(), self, self.dim)
-            e.requires_grad = True
+            e = loss_functional(y_pred, y, self, self.dim)
+            #e.requires_grad = True
 
             F, z = e.min(1)  # get energy and latent
             memory.append(torch.mean(abs(F)).item())  # save energy to memory
