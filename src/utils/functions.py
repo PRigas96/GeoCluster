@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 from src.ebmUtils import loss_functional
-from src.metrics import Linf, Linf_3d, Linf_array
+from src.metrics import Linf, Linf_3d, Linf_array, Linf_simple
 from src.utils.data import loadData
 
 
@@ -148,6 +148,7 @@ def getE(model, best_outputs, qp, sq):
     """
     # get qp
     qp = qp if torch.is_tensor(qp) else torch.tensor(qp)
+    sq = sq if torch.is_tensor(sq) else torch.tensor(sq)
     # get outputs
     outputs = best_outputs
     outputs = outputs if torch.is_tensor(outputs) else torch.tensor(outputs)
@@ -180,9 +181,11 @@ def NearestNeighbour(qp, sq):
     d_nn = np.inf
     z_nn = 0
     dim = qp.shape[0]
+    qp = torch.tensor(qp) if not torch.is_tensor(qp) else qp
+    sq = sq if torch.is_tensor(sq) else torch.tensor(sq)
     for i, square in enumerate(sq):
         if dim == 2:
-            d_nn_sq, _, _ = Linf(square, qp)
+            d_nn_sq = Linf_simple(square, qp)
         else:
             d_nn_sq = Linf_3d(square, qp)
         if d_nn_sq <= d_nn:

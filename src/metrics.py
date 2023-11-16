@@ -18,10 +18,12 @@ def Linf(square, point):
     square = geo.create_square2(square)
     # 1st put coords around point and transform
     # in order to do the transform substract the point from each coord
-    square_new = np.array([np.subtract(square_point, point)
-                          for square_point in square])
-    square_new_ = np.array([np.subtract(square_point, point)
-                           for square_point in square])
+    # normalize square to be around the point
+    square_new = square_new[:, 0] - point[0], square_new[:, 1] - point[1]
+    square_new_ = square_new[:, 0] - point[0], square_new[:, 1] - point[1]
+
+    #square_new = np.array([np.subtract(square_point, point) for square_point in square])
+    #square_new_ = np.array([np.subtract(square_point, point) for square_point in square])
 
     # find if y = abs(x) intersects the square and if so add the point to the list so that the clockwise order is preserved
     # find the intersection point

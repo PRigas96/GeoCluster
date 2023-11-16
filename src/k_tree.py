@@ -3,7 +3,7 @@ import numpy as np
 from src.models import Teacher, Student
 from queue import Queue
 from src.utils.functions import getUncertaintyArea, getE, NearestNeighbour
-from src.metrics import Linf, Linf_3d
+from src.metrics import Linf, Linf_3d, Linf_simple
 import math as m
 import matplotlib.pyplot as plt
 from src.utils import plot_tools as pt
@@ -132,7 +132,7 @@ class Ktree:
             if n_of_centroids == 0:
                 n_of_centroids = 2**self.ktree.dim
 
-            encoder_width = self.ktree.teacher_args["encoder_width"]
+            encoder_activation = self.ktree.teacher_args["encoder_activation"]
             encoder_depth = self.ktree.teacher_args["encoder_depth"]
             predictor_width = self.ktree.teacher_args["predictor_width"]
             predictor_depth = self.ktree.teacher_args["predictor_depth"]
@@ -140,7 +140,7 @@ class Ktree:
             latent_size = len(self.data)// 5
             teacher = Teacher(n_of_centroids,
                               self.ktree.dim,
-                              encoder_width,
+                              encoder_activation,
                               encoder_depth,
                               predictor_width,
                               predictor_depth,
@@ -189,6 +189,7 @@ class Ktree:
                 pt.plot_AM_dem(upper_signal, lower_signal, filtered_signal, signal, teacher.best_epoch)
                 # Plot the best model with the best outputs.
                 manifold = pt.createManifold(teacher, teacher.best_outputs.cpu(), x_lim=bounding_box[0], y_lim=bounding_box[1])
+                manifold = manifold.cpu().detach().numpy()
                 pt.plotManifold(self.data, manifold, teacher.best_outputs.cpu(), bounding_box[0], bounding_box[1])
                 plt.show()
 
@@ -218,7 +219,7 @@ class Ktree:
             """
             qp = np.random.permutation(m_points)
             qp = torch.tensor(qp)
-            F, z, F_sq, z_sq = getE(teacher, teacher.best_outputs.cpu(), qp, self.data)
+            F, z, F_sq, z_sq = getE(teacher, teacher.best_outputs, qp, self.data)
             # Initialize the pseudo clusters.
             # Append data that their z_sq is i for each centroid.
             pseudo_clusters = [self.data[z_sq == i] for i in range(teacher.n_centroids)]
@@ -313,7 +314,7 @@ class Ktree:
 
         def query(self, query_point):
             if self.ktree.dim == 2:
-                dists = np.array([Linf(self.data[i], query_point)[0] for i in range(len(self.data))])
+                dists = np.array([Linf_simple(self.data[i], query_point) for i in range(len(self.data))])
             else:
                 dists = np.array([Linf_3d(self.data[i], query_point) for i in range(len(self.data))])
             min_dist_index = dists.argmin()

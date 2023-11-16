@@ -28,7 +28,10 @@ def plot_data_on_manifold(fig,ax ,obj, size=10, limits=[-10, 10, -10, 10]):
     num_polygons = data.__len__()
 
     for i in range(num_polygons):
-        square = geo.create_square2(data[i])
+        # make float data[i] -> double
+        for j in range(data[i].__len__()):
+            data[i][j] = data[i][j].astype(np.double)
+        square = geo.create_square2_np(data[i])
         # print(square.shape)
         polygon = Polygon(square, True)
         patches.append(polygon)
@@ -163,8 +166,8 @@ def createManifold(model
     manifold = manifold.view(-1, 4) # flatten
     points = manifold[:, :2] # get points (x,y)
     points = torch.cat((points, torch.zeros((points.shape[0], 2))), dim=1) # add zeros for z and w
-    outputs = y_pred.detach().numpy()
-    points = points.detach().numpy()
+    outputs = y_pred
+    points = points
     cost = loss_functional(outputs, points, model) # calculate cost
     F, z = cost.min(1) # get energy and latent
     for i in range(manifold.shape[0]):

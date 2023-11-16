@@ -36,7 +36,7 @@ class Teacher(nn.Module):
     def __init__(self, 
                  n_centroids,
                  output_dim, 
-                 encoder_width,
+                 encoder_activation,
                  encoder_depth,
                  projector_width,
                  projector_depth,
@@ -53,14 +53,22 @@ class Teacher(nn.Module):
         # decoder is a linear layer
         enc_layer = []
         for i in range(encoder_depth):
+            # encoder will start from latent size and go to output dim in encoder_depth steps.  No width is needed
+            times = latent_size // encoder_depth # e.g. 400 // 4 = 100
+            flag = encoder_activation
             if i == 0:
-                enc_layer.append(nn.Linear(latent_size, encoder_width,bias=False))
-                #enc_layer.append(nn.ReLU())
+                enc_layer.append(nn.Linear(latent_size, latent_size//(times*(i+1))))
+                if flag:
+                    enc_layer.append(nn.ReLU())
             elif i == encoder_depth - 1:
-                enc_layer.append(nn.Linear(encoder_width, output_dim,bias=False))
+                enc_layer.append(nn.Linear(latent_size//(times*(i)), output_dim))
             else:
-                enc_layer.append(nn.Linear(encoder_width, encoder_width,bias=False))
-                enc_layer.append(nn.ReLU())
+                enc_layer.append(nn.Linear(latent_size//(times*(i)), latent_size//(times*(i+1))))
+                if flag:
+                    enc_layer.append(nn.ReLU())
+
+
+            
         self.encoder= nn.Sequential(*enc_layer)
         #self.encoder = nn.Sequential(nn.Linear(latent_size, output_dim, bias=False),)
         # init z to one-hot descrete latent variable
@@ -152,7 +160,19 @@ class Teacher(nn.Module):
 
         return y_hat
 # debugging number of centroids
-    def train_(self, optimizer, epochs, times, train_data, bounding_box,number_of_centroids,latent_size,encoder_width,encoder_depth,predictor_width,predictor_depth, alpha=10, beta=10,gamma=10,delta=0.1, f_clk=2, scale=1e-2,
+    def train_(self, optimizer, epochs, times, train_data, bounding_box,
+               number_of_centroids,
+               latent_size,
+               encoder_activation,
+               encoder_depth,
+               predictor_width,
+               predictor_depth,
+               alpha=10,
+               beta=10,
+               gamma=10,
+               delta=0.1,
+               f_clk=2,
+               scale=1e-2,
                bound_for_saving=6000):
         """
             Train the teacher model
