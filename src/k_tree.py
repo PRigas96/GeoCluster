@@ -75,6 +75,7 @@ class Ktree:
 
     def query(self, query_point):
         query_point = query_point if torch.is_tensor(query_point) else torch.tensor(query_point)
+    
         node = self.root
         while not node.isLeaf():
             pred = node.student(query_point)
@@ -296,7 +297,9 @@ class Ktree:
             self.best_reg = teacher.reg_proj_array[teacher.best_epoch]
 
         def create_student_from_config(self, path):
-            student = Student(2**self.ktree.dim, self.ktree.dim, self.ktree.dim).to(self.device)
+            width = self.ktree.student_args["width"]
+            depth = self.ktree.student_args["depth"]
+            student = Student(2**self.ktree.dim, self.ktree.dim, self.ktree.dim, width, depth).to(self.device)  # initialize the voronoi network
             student.load_state_dict(torch.load(path))
             student.eval()
             self.student = student
@@ -314,8 +317,10 @@ class Ktree:
 
         def query(self, query_point):
             if self.ktree.dim == 2:
-                dists = np.array([Linf_simple(self.data[i], query_point) for i in range(len(self.data))])
+                dists = np.array([Linf_simple(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
             else:
+                # if it doesnt work try this:
+                # dists = np.array([Linf_3d(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
                 dists = np.array([Linf_3d(self.data[i], query_point) for i in range(len(self.data))])
             min_dist_index = dists.argmin()
             return self.data[min_dist_index]
