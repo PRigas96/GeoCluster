@@ -115,7 +115,7 @@ class Ktree:
             "cluster_index": node.index
         }
 
-    def plot_leaf_clusters(self, n_samples):
+    def plot_leaf_clusters(self, n_samples=2000):
         """Plot the cluster spaces defined by the tree's leaf nodes.
             Take as samples an equal split of the space in each dimension (final number of samples will be reduced),
             predict their cluster and plot them colored accordingly by converting node index to integer.
@@ -133,9 +133,41 @@ class Ktree:
         # the number of centroids k. Add "1" at the beginning to distinguish e.g. "01" from "001".
         samples_cluster_indices = [self.query_verbose(torch.from_numpy(sample).float())["cluster_index"]
                                    for sample in samples]
-        sample_clusters_ids = [int("1" + samples_cluster, self.root.student.n_centroids)
+        sample_clusters_ids = [int("1" + samples_cluster, self.teacher_args["number_of_centroids"])
                                for samples_cluster in samples_cluster_indices]
+        ax = plt.axes(projection='3d' if self.dim == 3 else None)
+        ax.scatter(*tuple(samples[:, i] for i in range(samples.shape[1])), c=sample_clusters_ids)
 
+    def plot_leaf_clusters_voronoi(self, n_samples=2000):
+        """Plot the voronoi diagram (by sampling) shared among the data
+            in the cluster spaces defined by the tree's leaf nodes.
+            Take as samples an equal split of the space in each dimension (final number of samples will be reduced),
+            find their nearest neighbour (by brute force) and the cluster they're in
+            and plot them colored accordingly by converting node index to integer.
+
+        Args:
+            n_samples (int): The number of the points to sample.
+        """
+        n_samples_dim = int(n_samples ** (1 / self.dim))
+        bounding_box = self.root.get_bounding_box()
+        samples_linspace = np.array([np.linspace(bounding_box[d][0], bounding_box[d][1], n_samples_dim)
+                                     for d in range(self.dim)])
+        samples = np.array(np.meshgrid(*samples_linspace)).T.reshape(-1, self.dim)
+
+        samples_nn_z = [NearestNeighbour(sample, self.data)[1] for sample in samples]
+        samples_cluster_indices = ["0"] * len(samples)
+        for i, nn_z in enumerate(samples_nn_z):
+            node = self.root
+            while not node.isLeaf():
+                child_has_nn = [self.data[nn_z].tolist() in node.children[j].data.tolist()
+                                for j in range(len(node.children))]
+                node = node.children[child_has_nn.index(True)]
+            samples_cluster_indices[i] = node.index
+
+        # Get the cluster node index and convert it to an integer using as base the number of centroids k.
+        # Add "1" at the beginning to distinguish e.g. "01" from "001".
+        sample_clusters_ids = [int("1" + samples_cluster, self.teacher_args["number_of_centroids"])
+                               for samples_cluster in samples_cluster_indices]
         ax = plt.axes(projection='3d' if self.dim == 3 else None)
         ax.scatter(*tuple(samples[:, i] for i in range(samples.shape[1])), c=sample_clusters_ids)
 
