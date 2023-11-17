@@ -74,6 +74,26 @@ class Ktree:
                     queue.put(node.children[i])
 
     def query(self, query_point):
+        """A query in the k-tree structure for a given point.
+
+        Args:
+            query_point (torch.tensor): A point vector (in the objects' dimension).
+        Returns:
+            object: The nearest neighbor data object with respect to the query point.
+        """
+        return self.query_verbose(query_point)["nn"]
+
+    def query_verbose(self, query_point):
+        """A verbose query in the k-tree structure for a given point.
+            Use this method to add more query results.
+
+        Args:
+            query_point (torch.tensor): A point vector (in the objects' dimension).
+        Returns:
+            dict: A dictionary with properties
+            - nn (object): The nearest neighbor data object with respect to the query point.
+            - cluster_index (str): The index property of the leaf node the nearest neighbour belongs to.
+        """
         query_point = query_point if torch.is_tensor(query_point) else torch.tensor(query_point)
     
         node = self.root
@@ -89,7 +109,68 @@ class Ktree:
                 node = node.children[z]
                 break
 
-        return node.query(query_point)
+        nn = node.query(query_point)
+
+        return {
+            "nn": nn,
+            "cluster_index": node.index
+        }
+
+    def plot_leaf_clusters(self, n_samples=2000):
+        """Plot the cluster spaces defined by the tree's leaf nodes.
+            Take as samples an equal split of the space in each dimension (final number of samples will be reduced),
+            predict their cluster and plot them colored accordingly by converting node index to integer.
+
+        Args:
+            n_samples (int): The number of the points to sample.
+        """
+        n_samples_dim = int(n_samples ** (1 / self.dim))
+        bounding_box = self.root.get_bounding_box()
+        samples_linspace = np.array([np.linspace(bounding_box[d][0], bounding_box[d][1], n_samples_dim)
+                                     for d in range(self.dim)])
+        samples = np.array(np.meshgrid(*samples_linspace)).T.reshape(-1, self.dim)
+
+        # Predict the sample point, get the cluster node index and convert it to an integer using as base
+        # the number of centroids k. Add "1" at the beginning to distinguish e.g. "01" from "001".
+        samples_cluster_indices = [self.query_verbose(torch.from_numpy(sample).float())["cluster_index"]
+                                   for sample in samples]
+        sample_clusters_ids = [int("1" + samples_cluster, self.teacher_args["number_of_centroids"])
+                               for samples_cluster in samples_cluster_indices]
+        ax = plt.axes(projection='3d' if self.dim == 3 else None)
+        ax.scatter(*tuple(samples[:, i] for i in range(samples.shape[1])), c=sample_clusters_ids)
+
+    def plot_leaf_clusters_voronoi(self, n_samples=2000):
+        """Plot the voronoi diagram (by sampling) shared among the data
+            in the cluster spaces defined by the tree's leaf nodes.
+            Take as samples an equal split of the space in each dimension (final number of samples will be reduced),
+            find their nearest neighbour (by brute force) and the cluster they're in
+            and plot them colored accordingly by converting node index to integer.
+
+        Args:
+            n_samples (int): The number of the points to sample.
+        """
+        n_samples_dim = int(n_samples ** (1 / self.dim))
+        bounding_box = self.root.get_bounding_box()
+        samples_linspace = np.array([np.linspace(bounding_box[d][0], bounding_box[d][1], n_samples_dim)
+                                     for d in range(self.dim)])
+        samples = np.array(np.meshgrid(*samples_linspace)).T.reshape(-1, self.dim)
+
+        samples_nn_z = [NearestNeighbour(sample, self.data)[1] for sample in samples]
+        samples_cluster_indices = ["0"] * len(samples)
+        for i, nn_z in enumerate(samples_nn_z):
+            node = self.root
+            while not node.isLeaf():
+                child_has_nn = [self.data[nn_z].tolist() in node.children[j].data.tolist()
+                                for j in range(len(node.children))]
+                node = node.children[child_has_nn.index(True)]
+            samples_cluster_indices[i] = node.index
+
+        # Get the cluster node index and convert it to an integer using as base the number of centroids k.
+        # Add "1" at the beginning to distinguish e.g. "01" from "001".
+        sample_clusters_ids = [int("1" + samples_cluster, self.teacher_args["number_of_centroids"])
+                               for samples_cluster in samples_cluster_indices]
+        ax = plt.axes(projection='3d' if self.dim == 3 else None)
+        ax.scatter(*tuple(samples[:, i] for i in range(samples.shape[1])), c=sample_clusters_ids)
 
     class Node:
         """Implements a node class to use in a tree."""
@@ -111,16 +192,24 @@ class Ktree:
             self.un_labels = None
             self.un_energy = None
 
+        def get_bounding_box(self):
+            """Calculate and return the bounding box of the data.
+
+            Returns:
+                list: A list of [min, max] pairs for each dimension of the data.
+            """
+            # The first "dim" columns have the centers, the second "dim" columns have the sizes.
+            size_sup = 2 * np.max(self.data[:, self.ktree.dim:2 * self.ktree.dim])
+            return [[m.floor(min(self.data[:, i] - size_sup)), m.ceil(max(self.data[:, i] + size_sup))]
+                    for i in range(self.ktree.dim)]
+
         def create_student(self, save_path_prefix="", plot=False):
             # If the node has no data, do nothing.
             if len(self.data) == 0:
                 return
 
             # First calculate the bounding box of the data.
-            # The first "dim" columns have the centers, the second "dim" columns have the sizes.
-            size_sup = 2 * np.max(self.data[:, self.ktree.dim:2 * self.ktree.dim])
-            bounding_box = [[m.floor(min(self.data[:, i] - size_sup)), m.ceil(max(self.data[:, i] + size_sup))]
-                            for i in range(self.ktree.dim)]
+            bounding_box = self.get_bounding_box()
             print(f"Bounding box for node {self.index}: {bounding_box}")
 
             """
