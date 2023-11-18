@@ -139,6 +139,7 @@ def plot_AM_dem(upper_signal, lower_signal, filtered_signal, signal, best_epoch)
         
 def createManifold(model
                     , y_pred
+                    , metric
                     , x_discr = 100
                     , y_discr = 100
                     , x_lim = [0, 300]
@@ -150,6 +151,7 @@ def createManifold(model
         Parameters:
             model: model to be used
             y_pred: predicted outputs
+            metric: the metric to use for the loss function
             x_discr: x discretization
             y_discr: y discretization
             x_lim: x limits
@@ -168,7 +170,7 @@ def createManifold(model
     points = torch.cat((points, torch.zeros((points.shape[0], 2))), dim=1) # add zeros for z and w
     outputs = y_pred
     points = points
-    cost = loss_functional(outputs, points, model) # calculate cost
+    cost = loss_functional(outputs, points, metric) # calculate cost
     F, z = cost.min(1) # get energy and latent
     for i in range(manifold.shape[0]):
         manifold[i, -2] = F[i]

@@ -2,8 +2,7 @@ import torch
 import numpy as np
 
 from src.ebmUtils import loss_functional
-from src.metrics import Linf, Linf_3d, Linf_array, Linf_simple
-from src.utils.data import loadData
+from src.metrics import Linf_array
 
 
 """
@@ -130,7 +129,7 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
     return m_points
 
 
-def getE(model, best_outputs, qp, sq):
+def getE(model, best_outputs, qp, sq, metric):
     """
         Get the Linf distance between the outputs and the qp points
 
@@ -139,6 +138,7 @@ def getE(model, best_outputs, qp, sq):
             best_outputs: the outputs of the teacher network
             qp: the points to compare the outputs to
             sq: the sq points
+            metric: the metric function to use for loss function
 
         Returns:
             F: the Linf distance between the outputs and the qp points
@@ -160,34 +160,31 @@ def getE(model, best_outputs, qp, sq):
     F, z = E.min(0)
     # now do the same for sq
     outputs = outputs.detach().numpy()
-    E_sq = loss_functional(outputs, sq, model)
+    E_sq = loss_functional(outputs, sq, metric)
     F_sq, z_sq = E_sq.min(1)
 
     return F, z, F_sq, z_sq
 
 
-def NearestNeighbour(qp, sq):
+def NearestNeighbour(qp, sq, metric):
     """
         Find the nearest neighbour of qp in sq
 
         Parameters:
             qp: the query point
             sq: the points to compare the query point to
+            metric: a metric function between a data object and a point
 
         Returns:
-            d_nn: the Linf distance between the query point and its nearest neighbour
+            d_nn: the distance between the query point and its nearest neighbour, using the given metric
             z_nn: the index of the nearest neighbour
     """
     d_nn = np.inf
     z_nn = 0
-    dim = qp.shape[0]
     qp = torch.tensor(qp) if not torch.is_tensor(qp) else qp
     sq = sq if torch.is_tensor(sq) else torch.tensor(sq)
     for i, square in enumerate(sq):
-        if dim == 2:
-            d_nn_sq = Linf_simple(square, qp)
-        else:
-            d_nn_sq = Linf_3d(square, qp)
+        d_nn_sq = metric(square, qp)
         if d_nn_sq <= d_nn:
             d_nn = d_nn_sq
             z_nn = i

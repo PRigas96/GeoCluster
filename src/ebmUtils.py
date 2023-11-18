@@ -1,6 +1,4 @@
 import torch
-import src.geometry as geo
-from src.metrics import Linf, Linf_3d, Linf_simple
 import numpy as np
 from torch import nn
 
@@ -64,7 +62,7 @@ def RegLatent(latent):
         
     return kld
 
-def loss_functional(y_hat, y_target, model, dim=2):
+def loss_functional(y_hat, y_target, metric):
     """
         Computes the loss functional of the model
 
@@ -78,7 +76,6 @@ def loss_functional(y_hat, y_target, model, dim=2):
     """
     n_centroids = y_hat.shape[0] # number of centroids
     n_data = y_target.shape[0] # number of data
-    dim = y_hat.shape[1]
     size = (n_data, n_centroids) # size of the loss matrix
     loss = torch.zeros(size) # initialize loss matrix
     for i in range(n_data):
@@ -87,8 +84,5 @@ def loss_functional(y_hat, y_target, model, dim=2):
             square = y_target[i] # get square
             # square = torch.tensor(square)
             #y_hat[j] = y_hat[j].clone().detach().requires_grad_(True)
-            if(dim == 2):
-                loss[i, j] = Linf_simple(square, y_hat[j]) # compute loss
-            else:
-                loss[i, j] = Linf_3d(square, y_hat[j]) # compute loss
-    return loss 
+            loss[i, j] = metric(square, y_hat[j]) # compute loss
+    return loss

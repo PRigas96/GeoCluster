@@ -3,7 +3,6 @@ import numpy as np
 from src.models import Teacher, Student
 from queue import Queue
 from src.utils.functions import getUncertaintyArea, getE, NearestNeighbour
-from src.metrics import Linf, Linf_3d, Linf_simple
 import math as m
 import matplotlib.pyplot as plt
 from src.utils import plot_tools as pt
@@ -41,10 +40,11 @@ class Ktree:
                 
     """
 
-    def __init__(self, threshold, data, teacher_args, un_args, student_args, dim=2):
+    def __init__(self, threshold, data, metric, teacher_args, un_args, student_args, dim=2):
         # self.boundary = boundary        #The given bounding box
         self.threshold = threshold      # Minimum number of data (objects) in a node.
         self.data = data                # The input data (objects).
+        self.metric = metric
         self.teacher_args = teacher_args
         self.un_args = un_args
         self.student_args = student_args
@@ -73,6 +73,23 @@ class Ktree:
                 for i in range(node.student.n_centroids):
                     queue.put(node.children[i])
 
+    def get_leaves(self, node=None):
+        """Returns a list of all the tree's leaf nodes (ordered "left to right").
+
+        Returns:
+            list[Node]: A list of all the leaf nodes, ordered "left to right".
+        """
+        node = node if node is not None else self.root
+
+        if node.isLeaf():
+            return [self]
+
+        leaves = []
+        for i in range(len(node.children)):
+            leaves += self.get_leaves(node.children[i])
+
+        return leaves
+
     def query(self, query_point):
         """A query in the k-tree structure for a given point.
 
@@ -95,7 +112,7 @@ class Ktree:
             - cluster_index (str): The index property of the leaf node the nearest neighbour belongs to.
         """
         query_point = query_point if torch.is_tensor(query_point) else torch.tensor(query_point)
-    
+
         node = self.root
         while not node.isLeaf():
             pred = node.student(query_point)
@@ -115,6 +132,18 @@ class Ktree:
             "nn": nn,
             "cluster_index": node.index
         }
+
+    def query_maxsum(self, query_points):
+        leaves = self.get_leaves()
+        leaf_sums = self.root.get_leaf_sums(query_points)
+        _, maxsum_indices = leaf_sums.max(1)
+        return [leaves[maxsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
+
+    def query_maxcumsum(self, query_points):
+        leaves = self.get_leaves()
+        leaves_sum = self.root.get_leaf_cumsums(query_points)
+        _, maxcumsum_indices = leaves_sum.max(1)
+        return [leaves[maxcumsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
 
     def plot_leaf_clusters(self, n_samples=2000):
         """Plot the cluster spaces defined by the tree's leaf nodes.
@@ -155,7 +184,7 @@ class Ktree:
                                      for d in range(self.dim)])
         samples = np.array(np.meshgrid(*samples_linspace)).T.reshape(-1, self.dim)
 
-        samples_nn_z = [NearestNeighbour(sample, self.data)[1] for sample in samples]
+        samples_nn_z = [NearestNeighbour(sample, self.data, self.metric)[1] for sample in samples]
         samples_cluster_indices = ["0"] * len(samples)
         for i, nn_z in enumerate(samples_nn_z):
             node = self.root
@@ -244,7 +273,7 @@ class Ktree:
             del teacher_args["optimizer_lr"]
             # Train the teacher model and assign the best state found during training.
             teacher.train_(train_data=torch.from_numpy(self.data).float().to(self.device),
-                           bounding_box=bounding_box, **teacher_args)
+                           metric=self.ktree.metric, bounding_box=bounding_box, **teacher_args)
             teacher.load_state_dict(teacher.best_model_state)
             
             # Save the model and some training results.
@@ -278,7 +307,8 @@ class Ktree:
                                                                         fs=2 * len(signal))
                 pt.plot_AM_dem(upper_signal, lower_signal, filtered_signal, signal, teacher.best_epoch)
                 # Plot the best model with the best outputs.
-                manifold = pt.createManifold(teacher, teacher.best_outputs.cpu(), x_lim=bounding_box[0], y_lim=bounding_box[1])
+                manifold = pt.createManifold(teacher, teacher.best_outputs.cpu(), self.ktree.metric,
+                                             x_lim=bounding_box[0], y_lim=bounding_box[1])
                 manifold = manifold.cpu().detach().numpy()
                 pt.plotManifold(self.data, manifold, teacher.best_outputs.cpu(), bounding_box[0], bounding_box[1])
                 plt.show()
@@ -309,7 +339,7 @@ class Ktree:
             """
             qp = np.random.permutation(m_points)
             qp = torch.tensor(qp)
-            F, z, F_sq, z_sq = getE(teacher, teacher.best_outputs, qp, self.data)
+            F, z, F_sq, z_sq = getE(teacher, teacher.best_outputs, qp, self.data, self.ktree.metric)
             # Initialize the pseudo clusters.
             # Append data that their z_sq is i for each centroid.
             pseudo_clusters = [self.data[z_sq == i] for i in range(teacher.n_centroids)]
@@ -322,7 +352,7 @@ class Ktree:
                     print(f"Labeled {i}/{outputs_shape[0]} points.")
                 for j in range(outputs_shape[1]):
                     qpoint = qp[i].cpu().detach().numpy()
-                    F_ps[i, j], z_ps[i, j] = torch.tensor(NearestNeighbour(qpoint, pseudo_clusters[j]))
+                    F_ps[i, j], z_ps[i, j] = torch.tensor(NearestNeighbour(qpoint, pseudo_clusters[j], self.ktree.metric))
             print(f"Labeled all {outputs_shape[0]}/{outputs_shape[0]} points.")
             self.un_labels = z_ps
             self.un_energy = F_ps
@@ -405,11 +435,62 @@ class Ktree:
                 self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster}", self.ktree, self))
 
         def query(self, query_point):
-            if self.ktree.dim == 2:
-                dists = np.array([Linf_simple(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
-            else:
-                # if it doesnt work try this:
-                # dists = np.array([Linf_3d(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
-                dists = np.array([Linf_3d(self.data[i], query_point) for i in range(len(self.data))])
+            # if it doesnt work try this:
+            # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
+            dists = np.array([self.ktree.metric(self.data[i], query_point) for i in range(len(self.data))])
             min_dist_index = dists.argmin()
             return self.data[min_dist_index]
+
+        def get_leaf_sums(self, query_points):
+            """Recursive function to calculate the energy from the node's student predictions
+                of given query points and add it to each of its children's respective energy.
+
+            Args:
+                query_points (torch.Tensor): The query points.
+
+            Returns:
+                torch.Tensor: A tensor containing the totally summed energies of the query point predictions
+                    for each leaf node (equivalently for each path on the tree).
+            """
+            # Base case, for a leaf return 0s as its energies are calculated on the parent.
+            if self.isLeaf():
+                return torch.zeros((len(query_points), 1))
+
+            # The student predictions are the children energies.
+            y_pred_children = self.student(query_points)
+            # Each y_pred_children column corresponds to the energies of a child node, so add that column
+            # to each child's leaf sums, i.e. the tensor with their leaves' predictions.
+            sums = [y_pred_children[:, i].reshape(-1, 1) + self.children[i].get_leaf_sums(query_points)
+                    for i in range(len(self.children))]
+            return torch.hstack(tuple(sums))
+
+        def get_leaf_cumsums(self, query_points, y_pred=None):
+            """Recursive function to calculate the cumulative energy from the node's student predictions
+                of given query points and add it to each of its children's respective energy.
+
+            Args:
+                query_points (torch.Tensor): The query points.
+                y_pred (torch.Tensor): The prediction energy column (from the parent) for the current node.
+
+            Returns:
+                torch.Tensor: A tensor containing the totally cumulatively summed energies of the query point
+                    predictions for each leaf node (equivalently for each path on the tree).
+            """
+            # Base case, for a leaf return 0s as its energies are calculated on the parent.
+            if self.isLeaf():
+                return torch.zeros((len(query_points), 1))
+
+            # y_pred validation.
+            y_pred = y_pred if y_pred is not None else torch.zeros((len(query_points), 1))
+            y_pred = y_pred if torch.is_tensor(y_pred) else torch.tensor(y_pred)
+            y_pred.reshape(-1, 1)  # Convert to a column tensor.
+            y_pred.to(self.device)
+
+            # The children energies for each query point is the sum of
+            # the node energies (y_pred) and the student predictions.
+            y_pred_children = y_pred + self.student(query_points)
+            # Each
+            cumsums = [y_pred_children[:, i].reshape(-1, 1) +
+                       self.children[i].get_leaf_cumsums(query_points, y_pred_children[:, i])
+                       for i in range(len(self.children))]
+            return torch.hstack(tuple(cumsums))
