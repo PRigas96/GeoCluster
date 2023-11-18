@@ -267,6 +267,30 @@ def get_edges(vertices):
                 edges_set.add(edge_tuple)
     return edges
 
+def check_if_intersect3_simple(cuboid1, cuboid2):
+    cube1_x = [vertex[0] for vertex in cuboid1]
+    cube1_y = [vertex[1] for vertex in cuboid1]
+    cube1_z = [vertex[2] for vertex in cuboid1]
+
+    cube2_x = [vertex[0] for vertex in cuboid2]
+    cube2_y = [vertex[1] for vertex in cuboid2]
+    cube2_z = [vertex[2] for vertex in cuboid2]
+
+    # Check for intersection along the x-axis
+    if max(cube1_x) < min(cube2_x) or min(cube1_x) > max(cube2_x):
+        return False
+
+    # Check for intersection along the y-axis
+    if max(cube1_y) < min(cube2_y) or min(cube1_y) > max(cube2_y):
+        return False
+
+    # Check for intersection along the z-axis
+    if max(cube1_z) < min(cube2_z) or min(cube1_z) > max(cube2_z):
+        return False
+
+    # If no axis misalignment is found, cubes intersect
+    return True
+
 def check_if_intersect3(cuboid1, cuboid2):
     """
         Check if two 3D cuboids intersect
@@ -433,11 +457,11 @@ def check_intersection(data, square):
             bool: True if the square intersects with any of the squares in data
     """
     # create a square
-    square = create_square2(square)
+    square = create_square2_np(square)
     # check if it intersects with any of the squares in the data
     for i in range(data.__len__()):
         # create a square
-        square2 = create_square2(data[i])
+        square2 = create_square2_np(data[i])
         # check if they intersect
         if check_if_intersect2(square, square2):
             return True
@@ -464,6 +488,6 @@ def check_intersection_3d(data, cuboid):
         # create a cuboid
         cuboid2 = create_cuboid(data[i])
         # check if they intersect
-        if check_if_intersect3(cuboid, cuboid2):
+        if check_if_intersect3_simple(cuboid, cuboid2):
             return True
     return False
