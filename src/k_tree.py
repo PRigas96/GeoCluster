@@ -73,6 +73,23 @@ class Ktree:
                 for i in range(node.student.n_centroids):
                     queue.put(node.children[i])
 
+    def get_leaves(self, node=None):
+        """Returns a list of all the tree's leaf nodes (ordered "left to right").
+
+        Returns:
+            list[Node]: A list of all the leaf nodes, ordered "left to right".
+        """
+        node = node if node is not None else self.root
+
+        if node.isLeaf():
+            return [self]
+
+        leaves = []
+        for i in range(len(node.children)):
+            leaves += self.get_leaves(node.children[i])
+
+        return leaves
+
     def query(self, query_point):
         """A query in the k-tree structure for a given point.
 
@@ -115,6 +132,18 @@ class Ktree:
             "nn": nn,
             "cluster_index": node.index
         }
+
+    def query_maxsum(self, query_points):
+        leaves = self.get_leaves()
+        leaf_sums = self.root.get_leaf_sums(query_points)
+        _, maxsum_indices = leaf_sums.max(1)
+        return [leaves[maxsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
+
+    def query_maxcumsum(self, query_points):
+        leaves = self.get_leaves()
+        leaves_sum = self.root.get_leaf_cumsums(query_points)
+        _, maxcumsum_indices = leaves_sum.max(1)
+        return [leaves[maxcumsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
 
     def plot_leaf_clusters(self, n_samples=2000):
         """Plot the cluster spaces defined by the tree's leaf nodes.
@@ -413,3 +442,57 @@ class Ktree:
                 dists = np.array([Linf_3d(self.data[i], query_point) for i in range(len(self.data))])
             min_dist_index = dists.argmin()
             return self.data[min_dist_index]
+
+        def get_leaf_sums(self, query_points):
+            """Recursive function to calculate the energy from the node's student predictions
+                of given query points and add it to each of its children's respective energy.
+
+            Args:
+                query_points (torch.Tensor): The query points.
+
+            Returns:
+                torch.Tensor: A tensor containing the totally summed energies of the query point predictions
+                    for each leaf node (equivalently for each path on the tree).
+            """
+            # Base case, for a leaf return 0s as its energies are calculated on the parent.
+            if self.isLeaf():
+                return torch.zeros((len(query_points), 1))
+
+            # The student predictions are the children energies.
+            y_pred_children = self.student(query_points)
+            # Each y_pred_children column corresponds to the energies of a child node, so add that column
+            # to each child's leaf sums, i.e. the tensor with their leaves' predictions.
+            sums = [y_pred_children[:, i].reshape(-1, 1) + self.children[i].get_leaf_sums(query_points)
+                    for i in range(len(self.children))]
+            return torch.hstack(tuple(sums))
+
+        def get_leaf_cumsums(self, query_points, y_pred=None):
+            """Recursive function to calculate the cumulative energy from the node's student predictions
+                of given query points and add it to each of its children's respective energy.
+
+            Args:
+                query_points (torch.Tensor): The query points.
+                y_pred (torch.Tensor): The prediction energy column (from the parent) for the current node.
+
+            Returns:
+                torch.Tensor: A tensor containing the totally cumulatively summed energies of the query point
+                    predictions for each leaf node (equivalently for each path on the tree).
+            """
+            # Base case, for a leaf return 0s as its energies are calculated on the parent.
+            if self.isLeaf():
+                return torch.zeros((len(query_points), 1))
+
+            # y_pred validation.
+            y_pred = y_pred if y_pred is not None else torch.zeros((len(query_points), 1))
+            y_pred = y_pred if torch.is_tensor(y_pred) else torch.tensor(y_pred)
+            y_pred.reshape(-1, 1)  # Convert to a column tensor.
+            y_pred.to(self.device)
+
+            # The children energies for each query point is the sum of
+            # the node energies (y_pred) and the student predictions.
+            y_pred_children = y_pred + self.student(query_points)
+            # Each
+            cumsums = [y_pred_children[:, i].reshape(-1, 1) +
+                       self.children[i].get_leaf_cumsums(query_points, y_pred_children[:, i])
+                       for i in range(len(self.children))]
+            return torch.hstack(tuple(cumsums))
