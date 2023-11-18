@@ -443,7 +443,7 @@ class Ktree:
         def query(self, query_point):
             # if it doesnt work try this:
             # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
-            dists = np.array([self.ktree.metric(self.data[i], query_point) for i in range(len(self.data))])
+            dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
             min_dist_index = dists.argmin()
             return self.data[min_dist_index]
 
