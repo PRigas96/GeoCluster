@@ -142,12 +142,14 @@ class Ktree:
     def query_maxsum(self, query_points):
         leaves = self.get_leaves()
         leaf_sums = self.root.get_leaf_sums(query_points)
+        print(leaf_sums)
         _, maxsum_indices = leaf_sums.max(1)
         return [leaves[maxsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
 
     def query_maxcumsum(self, query_points):
         leaves = self.get_leaves()
         leaves_sum = self.root.get_leaf_cumsums(query_points)
+        print(leaves_sum)
         _, maxcumsum_indices = leaves_sum.max(1)
         return [leaves[maxcumsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
 
