@@ -31,6 +31,43 @@ def loadData(numberOfData):
 
     return data, datapoints
 
+def create_data(number_of_data, x0, y0, size0, rotation0):
+    data = []
+    cnt = 0
+    # number of acceptable intersections for each square generation
+    max_num_of_collisions = 0.05 * number_of_data
+    num_of_collisions = 0
+
+    while cnt != number_of_data:
+        if 1000 <= cnt <= 10000 and (cnt - 1000) % 500 == 0:
+            print("reached ", cnt, " squares!")
+            np.save(f"./data_v2/10000sq/{cnt}sq_1_4.npy", data)
+
+        print("creating square ", cnt, "\n")
+        x = random.choice(x0)
+        y = random.choice(y0)
+        size = random.choice(size0)
+        rotation = random.choice(rotation0)
+
+        current_square = np.array([x, y, size, rotation])
+
+        # check if they intersect
+        # if they do not intersect add them to the data
+        if not geo.check_intersection(data, current_square):
+            data.append(current_square)
+            cnt += 1
+            num_of_collisions = 0
+        else:
+            num_of_collisions += 1
+            print(num_of_collisions)
+            if num_of_collisions == max_num_of_collisions:
+                print(
+                    "max number of collisions reached! dataset creation terminates!\n"
+                )
+                break
+    return data
+
+
 def loadData_3d(numberOfData, numberOfQueryPoints):
     """
         Load data from data folder
