@@ -3,7 +3,6 @@ import numpy as np
 from src.models import Teacher, Student
 from queue import Queue
 from src.utils.functions import getUncertaintyArea, getE, NearestNeighbour
-from src.metrics import Linf, Linf_3d, Linf_simple
 import math as m
 import matplotlib.pyplot as plt
 from src.utils import plot_tools as pt
@@ -41,10 +40,11 @@ class Ktree:
                 
     """
 
-    def __init__(self, threshold, data, teacher_args, un_args, student_args, dim=2):
+    def __init__(self, threshold, data, metric, teacher_args, un_args, student_args, dim=2):
         # self.boundary = boundary        #The given bounding box
         self.threshold = threshold      # Minimum number of data (objects) in a node.
         self.data = data                # The input data (objects).
+        self.metric = metric
         self.teacher_args = teacher_args
         self.un_args = un_args
         self.student_args = student_args
@@ -112,7 +112,7 @@ class Ktree:
             - cluster_index (str): The index property of the leaf node the nearest neighbour belongs to.
         """
         query_point = query_point if torch.is_tensor(query_point) else torch.tensor(query_point)
-    
+
         node = self.root
         while not node.isLeaf():
             pred = node.student(query_point)
@@ -184,7 +184,7 @@ class Ktree:
                                      for d in range(self.dim)])
         samples = np.array(np.meshgrid(*samples_linspace)).T.reshape(-1, self.dim)
 
-        samples_nn_z = [NearestNeighbour(sample, self.data)[1] for sample in samples]
+        samples_nn_z = [NearestNeighbour(sample, self.data, self.metric)[1] for sample in samples]
         samples_cluster_indices = ["0"] * len(samples)
         for i, nn_z in enumerate(samples_nn_z):
             node = self.root
@@ -273,7 +273,7 @@ class Ktree:
             del teacher_args["optimizer_lr"]
             # Train the teacher model and assign the best state found during training.
             teacher.train_(train_data=torch.from_numpy(self.data).float().to(self.device),
-                           bounding_box=bounding_box, **teacher_args)
+                           metric=self.ktree.metric, bounding_box=bounding_box, **teacher_args)
             teacher.load_state_dict(teacher.best_model_state)
             
             # Save the model and some training results.
@@ -307,7 +307,8 @@ class Ktree:
                                                                         fs=2 * len(signal))
                 pt.plot_AM_dem(upper_signal, lower_signal, filtered_signal, signal, teacher.best_epoch)
                 # Plot the best model with the best outputs.
-                manifold = pt.createManifold(teacher, teacher.best_outputs.cpu(), x_lim=bounding_box[0], y_lim=bounding_box[1])
+                manifold = pt.createManifold(teacher, teacher.best_outputs.cpu(), self.ktree.metric,
+                                             x_lim=bounding_box[0], y_lim=bounding_box[1])
                 manifold = manifold.cpu().detach().numpy()
                 pt.plotManifold(self.data, manifold, teacher.best_outputs.cpu(), bounding_box[0], bounding_box[1])
                 plt.show()
@@ -338,7 +339,7 @@ class Ktree:
             """
             qp = np.random.permutation(m_points)
             qp = torch.tensor(qp)
-            F, z, F_sq, z_sq = getE(teacher, teacher.best_outputs, qp, self.data)
+            F, z, F_sq, z_sq = getE(teacher, teacher.best_outputs, qp, self.data, self.ktree.metric)
             # Initialize the pseudo clusters.
             # Append data that their z_sq is i for each centroid.
             pseudo_clusters = [self.data[z_sq == i] for i in range(teacher.n_centroids)]
@@ -351,7 +352,7 @@ class Ktree:
                     print(f"Labeled {i}/{outputs_shape[0]} points.")
                 for j in range(outputs_shape[1]):
                     qpoint = qp[i].cpu().detach().numpy()
-                    F_ps[i, j], z_ps[i, j] = torch.tensor(NearestNeighbour(qpoint, pseudo_clusters[j]))
+                    F_ps[i, j], z_ps[i, j] = torch.tensor(NearestNeighbour(qpoint, pseudo_clusters[j], self.ktree.metric))
             print(f"Labeled all {outputs_shape[0]}/{outputs_shape[0]} points.")
             self.un_labels = z_ps
             self.un_energy = F_ps
@@ -434,12 +435,9 @@ class Ktree:
                 self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster}", self.ktree, self))
 
         def query(self, query_point):
-            if self.ktree.dim == 2:
-                dists = np.array([Linf_simple(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
-            else:
-                # if it doesnt work try this:
-                # dists = np.array([Linf_3d(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
-                dists = np.array([Linf_3d(self.data[i], query_point) for i in range(len(self.data))])
+            # if it doesnt work try this:
+            # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
+            dists = np.array([self.ktree.metric(self.data[i], query_point) for i in range(len(self.data))])
             min_dist_index = dists.argmin()
             return self.data[min_dist_index]
 

@@ -160,7 +160,7 @@ class Teacher(nn.Module):
 
         return y_hat
 # debugging number of centroids
-    def train_(self, optimizer, epochs, times, train_data, bounding_box,
+    def train_(self, optimizer, epochs, times, train_data, bounding_box, metric,
                number_of_centroids,
                latent_size,
                encoder_activation,
@@ -224,7 +224,7 @@ class Teacher(nn.Module):
                 reg_latent = RegLatent(self.z_l)  # regularize latent space
                 reg_latent_array.append(reg_latent.item())  # save reg_latent
 
-            e = loss_functional(y_pred, y, self, self.dim)
+            e = loss_functional(y_pred, y, metric)
             #e.requires_grad = True
 
             F, z = e.min(1)  # get energy and latent
