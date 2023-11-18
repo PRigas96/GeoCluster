@@ -173,6 +173,7 @@ class Teacher(nn.Module):
                delta=0.1,
                f_clk=2,
                scale=1e-2,
+               scale_flag=False,
                bound_for_saving=6000):
         """
             Train the teacher model
@@ -209,8 +210,8 @@ class Teacher(nn.Module):
             dim = y_pred.shape[1]
             # add pump
             if epoch % f_clk == 0 and epoch != 0:
-                if len(train_data)> 100:
-                    scale = len(train_data)^(-1) 
+                if  scale_flag:
+                    scale = len(self.data) 
                 y_pred_std = torch.randn(y_pred.shape) * memory[-1] * scale * delta
                 y_pred_std = y_pred_std.to(y_pred.device)
                 y_pred = y_pred + y_pred_std
@@ -228,16 +229,15 @@ class Teacher(nn.Module):
             #e.requires_grad = True
 
             F, z = e.min(1)  # get energy and latent
-            memory.append(torch.mean(abs(F)).item())  # save energy to memory
-            #print("Memory: ", memory[-1] )
-            
-
+            div = torch.mean(F).item()  # get average energy
+            memory.append(div)  # save memory
             # create a repulsive force between the centroids
             F_r = torch.zeros(self.n_centroids, self.n_centroids)
+            centroids = y_pred
             for i in range(self.n_centroids):
                 for j in range(self.n_centroids):
                     if i != j:
-                        F_r[i, j] = torch.max(torch.abs(self.z[i] - self.z[j]))
+                        F_r[i, j] = torch.max(torch.abs( centroids[i] - centroids[j]))
             # if 1 centroid is near another i wanna penaliize it
             cost = torch.mean(abs(F)) + alpha* reg_proj + beta * reg_latent  # add regularizers
 
@@ -281,11 +281,12 @@ class Teacher(nn.Module):
                 # print
                 print("Epoch: {}/{}.. \n".format(epoch + 1, epochs),
                       "Training loss: {:.5f}.. \n".format(cost.item()),
-                      "torch.mean(F): {:.5f}.. \n".format(torch.mean(F).item()),
+                      "torch.mean(F): {:.5f}.. \n".format(div),
                       "Reg Proj: {:.5f}.. \n".format(alpha*reg_proj.item()),
                       "Reg Latent: {:.5f}.. \n".format(beta*reg_latent.item()),
                       "Repulsive: {:.5f}.. \n".format(f_rep.item()),
-                      "Memory: {:.5f}.. \n".format(memory[-1] * scale * 0.01),
+                      "Memory: {:.5f}.. \n".format(memory[-1] *  delta),
+                      "Memory: {:.5f}.. \n".format( div *  delta),
                       "Output: \n", y_pred.detach().numpy(),
                 )
 

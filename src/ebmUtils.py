@@ -69,7 +69,7 @@ def loss_functional(y_hat, y_target, metric):
         Parameters:
             y_hat (list): list of the outputs of the projector
             y_target (list): list of the target outputs
-            model (LVGEBM): model
+            metric (function): metric to use to compute the loss
             
         Returns:
             loss (float): loss functional

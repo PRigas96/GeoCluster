@@ -40,7 +40,13 @@ class Ktree:
                 
     """
 
-    def __init__(self, threshold, data, metric, teacher_args, un_args, student_args, dim=2):
+    def __init__(self, threshold,
+                 data,
+                 metric,
+                 teacher_args,
+                 un_args,
+                 student_args,
+                 dim=2):
         # self.boundary = boundary        #The given bounding box
         self.threshold = threshold      # Minimum number of data (objects) in a node.
         self.data = data                # The input data (objects).
