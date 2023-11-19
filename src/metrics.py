@@ -146,7 +146,8 @@ def Linf_simple(square, q_point):
             min_dist (float): minimum distance between the point and the square, 0 if inside
 
     """
-    square = geo.create_square2(square)
+    dev = square.device
+    square = geo.create_square2(square).to(dev)
     is_inside = geo.IsPointInsidePoly(q_point, square)
 
     if is_inside:
@@ -154,6 +155,7 @@ def Linf_simple(square, q_point):
 
     min_dist = float('inf')
     for point in square:
+
         dist = torch.max(torch.abs(point - q_point))
         if dist < min_dist:
             min_dist = dist

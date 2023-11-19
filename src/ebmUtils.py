@@ -84,5 +84,6 @@ def loss_functional(y_hat, y_target, metric):
             square = y_target[i] # get square
             # square = torch.tensor(square)
             #y_hat[j] = y_hat[j].clone().detach().requires_grad_(True)
+            #print(square.device, y_hat[j].device)
             loss[i, j] = metric(square, y_hat[j]) # compute loss
     return loss

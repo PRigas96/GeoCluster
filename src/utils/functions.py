@@ -146,9 +146,12 @@ def getE(model, best_outputs, qp, sq, metric):
             F_sq: the Linf distance between the outputs and the sq points
             z_sq: the index of the sq point that is closest to the output
     """
+    dev = best_outputs.device
     # get qp
     qp = qp if torch.is_tensor(qp) else torch.tensor(qp)
     sq = sq if torch.is_tensor(sq) else torch.tensor(sq)
+    qp = qp.to(dev)
+    sq = sq.to(dev)
     # get outputs
     outputs = best_outputs
     outputs = outputs if torch.is_tensor(outputs) else torch.tensor(outputs)
@@ -159,7 +162,7 @@ def getE(model, best_outputs, qp, sq, metric):
             E[i, j] = torch.max(torch.abs(outputs[i] - qp[j]))
     F, z = E.min(0)
     # now do the same for sq
-    outputs = outputs.detach().numpy()
+    #outputs = outputs.detach().numpy()
     E_sq = loss_functional(outputs, sq, metric)
     F_sq, z_sq = E_sq.min(1)
 

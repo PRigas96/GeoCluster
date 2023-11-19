@@ -225,6 +225,8 @@ class Teacher(nn.Module):
                 reg_latent = RegLatent(self.z_l)  # regularize latent space
                 reg_latent_array.append(reg_latent.item())  # save reg_latent
 
+            #print("y_pred device is: ", y_pred.device)
+            #print("y device is: ", y.device)
             e = loss_functional(y_pred, y, metric)
             #e.requires_grad = True
 
@@ -287,7 +289,7 @@ class Teacher(nn.Module):
                       "Repulsive: {:.5f}.. \n".format(f_rep.item()),
                       "Memory: {:.5f}.. \n".format(memory[-1] *  delta),
                       "Memory: {:.5f}.. \n".format( div *  delta),
-                      "Output: \n", y_pred.detach().numpy(),
+                      "Output: \n", y_pred.cpu().detach().numpy(),
                 )
 
         # Store the training variables to the model.

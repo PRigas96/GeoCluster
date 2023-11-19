@@ -46,6 +46,7 @@ class Ktree:
                  teacher_args,
                  un_args,
                  student_args,
+                 device,
                  dim=2):
         # self.boundary = boundary        #The given bounding box
         self.threshold = threshold      # Minimum number of data (objects) in a node.
@@ -56,8 +57,9 @@ class Ktree:
         self.student_args = student_args
         self.divided = False
         root_parent = None
-        self.root = self.Node(self.data, "0", self, root_parent)
+        self.root = self.Node(self.data, "0", self, root_parent, device=device)
         self.dim = dim
+        self.device = device
         # self.root.create_student()   # Extract the trained student model for the root node.
 
     def create_tree(self, save_path_prefix="", plot=False):
@@ -118,6 +120,10 @@ class Ktree:
             - cluster_index (str): The index property of the leaf node the nearest neighbour belongs to.
         """
         query_point = query_point if torch.is_tensor(query_point) else torch.tensor(query_point)
+        # to device
+        query_point = query_point.to(self.device)
+        print(f"Querying point {query_point}...")
+        print(self.device)
 
         node = self.root
         while not node.isLeaf():
@@ -256,10 +262,10 @@ class Ktree:
     class Node:
         """Implements a node class to use in a tree."""
 
-        def __init__(self, data, index, ktree, parent):
+        def __init__(self, data, index, ktree, parent,device):
             """Initialise the class."""
-            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # never 
-            self.device = "cpu"
+            #self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # never 
+            self.device = device
             self.data = data
             self.student = None
             self.children = []
@@ -432,6 +438,8 @@ class Ktree:
             student_args = self.ktree.student_args
             width = student_args["width"]
             depth = student_args["depth"]
+            print(f"Creating student for node {self.index} with {n_of_centroids} centroids.")
+            print("Device is:", self.device)
             student = Student(n_of_centroids, self.ktree.dim, self.ktree.dim, width, depth).to(self.device)  # initialize the voronoi network
             student.train_(optimizer=torch.optim.Adam(student.parameters(), lr=student_args["optimizer_lr"]),
                            epochs=student_args["epochs"],
@@ -439,6 +447,7 @@ class Ktree:
                            qp=qp,
                            F_ps=F_ps
                            )
+            student.eval()
             student.load_state_dict(student.best_vor_model_state)
             
             # Save the model and some training results.
@@ -484,12 +493,14 @@ class Ktree:
             for cluster in range(self.student.n_centroids):
                 cluster_data = self.data[self.best_z == cluster]
                 # Create a child node with the corresponding data.
-                self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster}", self.ktree, self))
+                #         def __init__(self, data, index, ktree, parent,device):
+                self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster}", self.ktree, self, self.device))
 
         def query(self, query_point):
             # if it doesnt work try this:
             # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
-            dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
+            query_point.to(self.device)
+            dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
             min_dist_index = dists.argmin()
             return self.data[min_dist_index]
 
