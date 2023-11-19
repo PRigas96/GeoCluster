@@ -104,10 +104,12 @@ def create_square2_np(square):
 
     # then rotate the vertices according to the given rotation
     # the reference point of the rotation is the center of mass of the square
-    vertice1 = rotate_point(vertice1, mass_center, rotation)
-    vertice2 = rotate_point(vertice2, mass_center, rotation)
-    vertice3 = rotate_point(vertice3, mass_center, rotation)
-    vertice4 = rotate_point(vertice4, mass_center, rotation)
+
+    #We will not use rotation for now
+    # vertice1 = rotate_point(vertice1, mass_center, rotation)
+    # vertice2 = rotate_point(vertice2, mass_center, rotation)
+    # vertice3 = rotate_point(vertice3, mass_center, rotation)
+    # vertice4 = rotate_point(vertice4, mass_center, rotation)
 
     vertices = np.array([vertice1, vertice2, vertice3, vertice4])
 
@@ -377,6 +379,23 @@ def check_if_intersect(square1, square2):
             return True
     return False
 
+def check_if_intersect2_simple(square1, square2):
+    square1_x = [vertex[0] for vertex in square1]
+    square1_y = [vertex[1] for vertex in square1]
+
+    square2_x = [vertex[0] for vertex in square2]
+    square2_y = [vertex[1] for vertex in square2]
+
+    # Check for intersection along the x-axis
+    if max(square1_x) < min(square2_x) or min(square1_x) > max(square2_x):
+        return False
+
+    # Check for intersection along the y-axis
+    if max(square1_y) < min(square2_y) or min(square1_y) > max(square2_y):
+        return False
+
+    # If no axis misalignment is found, cubes intersect
+    return True
 
 def check_if_intersect2(square1, square2):
     """
@@ -463,7 +482,7 @@ def check_intersection(data, square):
         # create a square
         square2 = create_square2_np(data[i])
         # check if they intersect
-        if check_if_intersect2(square, square2):
+        if check_if_intersect2_simple(square, square2):
             return True
     return False
 
