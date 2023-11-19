@@ -122,8 +122,8 @@ class Ktree:
         query_point = query_point if torch.is_tensor(query_point) else torch.tensor(query_point)
         # to device
         query_point = query_point.to(self.device)
-        print(f"Querying point {query_point}...")
-        print(self.device)
+        #print(f"Querying point {query_point}...")
+        #print(self.device)
 
         node = self.root
         while not node.isLeaf():
@@ -500,7 +500,15 @@ class Ktree:
             # if it doesnt work try this:
             # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
             query_point.to(self.device)
-            dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
+            query_point = torch.tensor(query_point) if not torch.is_tensor(query_point) else query_point
+            #print("Query device is:", query_point.device)
+            #print("Data device are: ")
+            #print(torch.from_numpy(self.data[0]).double().to(self.device))
+            #print("Data[0] device are: ", self.data[0].device)
+            #dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
+            #dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
+            dists = torch.tensor([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
+            # dists should be tensor
             min_dist_index = dists.argmin()
             return self.data[min_dist_index]
 
