@@ -88,7 +88,7 @@ class Ktree:
         node = node if node is not None else self.root
 
         if node.isLeaf():
-            return [self]
+            return [node] # Return a list with the leaf node itself as its only element.
 
         leaves = []
         for i in range(len(node.children)):
@@ -122,6 +122,7 @@ class Ktree:
         node = self.root
         while not node.isLeaf():
             pred = node.student(query_point)
+            #print(f"Predictions for node {node.index} are {pred}")
             # Get an index array of the prediction's max to min values.
             _, z_ordered = pred.topk(node.student.n_centroids)  # Get the indices of prediction
             # If the child's data are empty, continue to the next z.
@@ -132,6 +133,7 @@ class Ktree:
                 node = node.children[z]
                 break
 
+        #print(f"Query point {query_point} belongs to node {node.index} ")
         nn = node.query(query_point)
 
         return {
@@ -142,15 +144,57 @@ class Ktree:
     def query_maxsum(self, query_points):
         leaves = self.get_leaves()
         leaf_sums = self.root.get_leaf_sums(query_points)
-        print(leaf_sums)
+        #print("Leaf_sums are:",leaf_sums)
         _, maxsum_indices = leaf_sums.max(1)
+        #print("Maxsum_indices are:",maxsum_indices)
+        #print(f"Nn is: {leaves[maxsum_indices[0]].query(query_points[0])}")
         return [leaves[maxsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
+    
+    def querry_knn_per_layer(self, query_points, k, eps = 0):
+        """
+            #TODO: implement this
+            Get k best choices per layer, or eps
+            
+            Args:
+                query_points (torch.tensor): A point vector (in the objects' dimension).
+                k (int): The number of best choices per layer.
+                eps (int): Sensitivity parameter.
+        """
+        if eps == 0:
+            pass
+        else:
+            # at each layer, get the choices and pick the ones inside eps ball
+            layer = self.root
+            layers = []
+            while not layer.isLeaf():
+                pred = layer.student(query_points)
+                _, z_ordered = pred.topk(k) # Get the indices of prediction
+                # check if 2 predictions are inside ball
+                diff = pred - max(pred)
+                for i in range(len(diff)):
+                    if diff[i] < eps:
+                        #TODO: if 2 predictions are inside the ball, search them both
+                        z_ordered = [z_ordered[0], z_ordered[i]]
+                else:
+                    # pick only the first
+                    z_ordered = z_ordered[0]
+                # If the child's data are empty, continue to the next z.
+                # Otherwise, set that child as current node and break (the for loop).
+                for z in z_ordered:
+                    if len(layer.children[z].data) == 0:
+                        continue
+                    layer = layer.children[z]
+                    break
+                layers.append(layer)
+            # return the best choice
 
     def query_maxcumsum(self, query_points):
         leaves = self.get_leaves()
         leaves_sum = self.root.get_leaf_cumsums(query_points)
-        print(leaves_sum)
+        #print("Leaf_sums are(cumsum):",leaves_sum)
         _, maxcumsum_indices = leaves_sum.max(1)
+        #print("Maxcumsum_indices are:",maxcumsum_indices)
+        #print(f"Nn is: {leaves[maxcumsum_indices[0]].query(query_points[0])}")
         return [leaves[maxcumsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
 
     def plot_leaf_clusters(self, n_samples=2000):
