@@ -1,8 +1,8 @@
 import numpy as np
 import random
 import src.geometry as geo
-import sklearn
-from sklearn.datasets import make_moons
+# import sklearn
+# from sklearn.datasets import make_moons
 import matplotlib.pyplot as plt
 
 def loadData(numberOfData):
@@ -31,21 +31,26 @@ def loadData(numberOfData):
 
     return data, datapoints
 
-def create_data(number_of_data, x0, y0, size0, rotation0):
+def create_data(number_of_data, x0, size0, rotation0):
     data = []
-    cnt = 0
+    cnt = 1
+    point_cnt = 0
     # number of acceptable intersections for each square generation
     max_num_of_collisions = 0.05 * number_of_data
     num_of_collisions = 0
 
-    while cnt != number_of_data:
-        if 1000 <= cnt <= 10000 and (cnt - 1000) % 500 == 0:
+    while cnt != number_of_data+1:
+        if(cnt >= len(x0)):
+            break
+
+        if (cnt == 1000) | (cnt == 5000) | (cnt == 10000) | (cnt == 25000) | (cnt == 35000)| (cnt == 45000)| (cnt == 50000):
             print("reached ", cnt, " squares!")
-            np.save(f"./data_v2/10000sq/{cnt}sq_1_4.npy", data)
+            np.save(f"./data/squares/100/{cnt}sq_1_4.npy", data)
 
         print("creating square ", cnt, "\n")
-        x = random.choice(x0)
-        y = random.choice(y0)
+        x = x0[point_cnt][0]
+        y = x0[point_cnt][1]
+        point_cnt += 1
         size = random.choice(size0)
         rotation = random.choice(rotation0)
 
@@ -95,7 +100,7 @@ def loadData_3d(numberOfData, numberOfQueryPoints):
 
     return data, datapoints
 
-def create_data_3d(numberOfData, x0, y0, z0, width, height, depth, theta, psi, phi, cube=True, axis_aligned=True):
+def create_data_3d(numberOfData, x0, width, height, depth, theta, psi, phi, cube=True, axis_aligned=True):
     """
         Create numberOfData data
     
@@ -114,23 +119,27 @@ def create_data_3d(numberOfData, x0, y0, z0, width, height, depth, theta, psi, p
             phi: second
     """
     data = []
-    cnt = 0 #Keep track of cuboids created so far
+    point_cnt = 0
+    cnt = 1 #Keep track of cuboids created so far
 
     #Maximum number of collisions allowed - If reached, the generation of cuboids stops
     maximum_num_of_collisions = 0.05 * numberOfData
     num_of_collisions = 0
 
-    while cnt != numberOfData:
+    while cnt != numberOfData+1:
+        if(cnt >= len(x0)):
+            break
         #Store the results for every 500 cuboids created, starting from 1.000 and ending to 10.000
-        if 1000 <= cnt <= 10000 and (cnt - 1000) % 500 == 0:
-            print("reached ", cnt, " squares!")
-            np.save(f"./data_v2/10000sq/{cnt}sq_1_4.npy", data)
+        if 10000 <= cnt <= 50000 and (cnt - 10000) % 5000 == 0:
+            print("reached ", cnt, " cuboids!")
+            np.save(f"./data_3d/10000cb/{cnt}cb_1_4.npy", data)
 
         print("creating square ", cnt, "\n")
         #Create the square with random center of mass
-        x = random.choice(x0)
-        y = random.choice(y0)
-        z = random.choice(z0)
+        x = x0[point_cnt][0]
+        y = x0[point_cnt][1]
+        z = x0[point_cnt][2]
+        point_cnt += 1
 
         #Check if the cuboid is actually a cube or not. Shape it accordingly
         if(cube):

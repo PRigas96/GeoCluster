@@ -195,7 +195,8 @@ if __name__ == '__main__':
     boxes = get_boxes(1, 0, 10, 0, 10, 1, 3, 1, 3)
     # for box in boxes:
     #     plot_square(box, 'blue')
-    print(distance_ellipse_2_point(boxes[0].ellipse.to_vector(), [11, 12]))
+    b = np.load('./../data/ellipses/1000el_1_3.npy', allow_pickle=True)
+    print(distance_ellipse_2_point(boxes[0].ellipse.to_vector(), [7, 3]))
     draw_ellipses(boxes)
     # save_to_file("./test.npy", boxes)
     # b = np.load('./test.npy', allow_pickle=True)

@@ -104,10 +104,12 @@ def create_square2_np(square):
 
     # then rotate the vertices according to the given rotation
     # the reference point of the rotation is the center of mass of the square
-    vertice1 = rotate_point(vertice1, mass_center, rotation)
-    vertice2 = rotate_point(vertice2, mass_center, rotation)
-    vertice3 = rotate_point(vertice3, mass_center, rotation)
-    vertice4 = rotate_point(vertice4, mass_center, rotation)
+
+    #We will not use rotation for now
+    # vertice1 = rotate_point(vertice1, mass_center, rotation)
+    # vertice2 = rotate_point(vertice2, mass_center, rotation)
+    # vertice3 = rotate_point(vertice3, mass_center, rotation)
+    # vertice4 = rotate_point(vertice4, mass_center, rotation)
 
     vertices = np.array([vertice1, vertice2, vertice3, vertice4])
 
@@ -267,6 +269,30 @@ def get_edges(vertices):
                 edges_set.add(edge_tuple)
     return edges
 
+def check_if_intersect3_simple(cuboid1, cuboid2):
+    cube1_x = [vertex[0] for vertex in cuboid1]
+    cube1_y = [vertex[1] for vertex in cuboid1]
+    cube1_z = [vertex[2] for vertex in cuboid1]
+
+    cube2_x = [vertex[0] for vertex in cuboid2]
+    cube2_y = [vertex[1] for vertex in cuboid2]
+    cube2_z = [vertex[2] for vertex in cuboid2]
+
+    # Check for intersection along the x-axis
+    if max(cube1_x) < min(cube2_x) or min(cube1_x) > max(cube2_x):
+        return False
+
+    # Check for intersection along the y-axis
+    if max(cube1_y) < min(cube2_y) or min(cube1_y) > max(cube2_y):
+        return False
+
+    # Check for intersection along the z-axis
+    if max(cube1_z) < min(cube2_z) or min(cube1_z) > max(cube2_z):
+        return False
+
+    # If no axis misalignment is found, cubes intersect
+    return True
+
 def check_if_intersect3(cuboid1, cuboid2):
     """
         Check if two 3D cuboids intersect
@@ -353,6 +379,23 @@ def check_if_intersect(square1, square2):
             return True
     return False
 
+def check_if_intersect2_simple(square1, square2):
+    square1_x = [vertex[0] for vertex in square1]
+    square1_y = [vertex[1] for vertex in square1]
+
+    square2_x = [vertex[0] for vertex in square2]
+    square2_y = [vertex[1] for vertex in square2]
+
+    # Check for intersection along the x-axis
+    if max(square1_x) < min(square2_x) or min(square1_x) > max(square2_x):
+        return False
+
+    # Check for intersection along the y-axis
+    if max(square1_y) < min(square2_y) or min(square1_y) > max(square2_y):
+        return False
+
+    # If no axis misalignment is found, cubes intersect
+    return True
 
 def check_if_intersect2(square1, square2):
     """
@@ -433,13 +476,13 @@ def check_intersection(data, square):
             bool: True if the square intersects with any of the squares in data
     """
     # create a square
-    square = create_square2(square)
+    square = create_square2_np(square)
     # check if it intersects with any of the squares in the data
     for i in range(data.__len__()):
         # create a square
-        square2 = create_square2(data[i])
+        square2 = create_square2_np(data[i])
         # check if they intersect
-        if check_if_intersect2(square, square2):
+        if check_if_intersect2_simple(square, square2):
             return True
     return False
 
@@ -464,6 +507,6 @@ def check_intersection_3d(data, cuboid):
         # create a cuboid
         cuboid2 = create_cuboid(data[i])
         # check if they intersect
-        if check_if_intersect3(cuboid, cuboid2):
+        if check_if_intersect3_simple(cuboid, cuboid2):
             return True
     return False
