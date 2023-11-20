@@ -193,8 +193,13 @@ class Teacher(nn.Module):
         print("="*20)
         print("Training Teacher Model")
         p_times = epochs // times  # print times
-        y = train_data
-
+        y_prep = train_data
+        num = 0
+        shuffle_flag = False
+        if y_prep.shape[0] > 5000:
+            print("Shuffling data")
+            shuffle_flag = True
+            num = 700
         p_p, p_c = [], []
         reg_proj_array = []
         reg_latent_array = []
@@ -205,6 +210,10 @@ class Teacher(nn.Module):
         reg_latent = torch.tensor(0.0)
         for epoch in range(epochs):
             # forward
+            if shuffle_flag:
+                y = y_prep[torch.randperm(y_prep.shape[0])][:num]
+            else:
+                y = y_prep
             y_pred = self(self.z)
             k = y_pred.shape[0]
             dim = y_pred.shape[1]
