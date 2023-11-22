@@ -126,7 +126,7 @@ class Ktree:
             - nn (object): The nearest neighbor data object with respect to the query point.
             - cluster_index (str): The index property of the leaf node the nearest neighbour belongs to.
         """
-        predictions_per_layer[]
+        predictions_per_layer = []
         query_point = query_point if torch.is_tensor(query_point) else torch.tensor(query_point)
         # to device
         query_point = query_point.to(self.device)
@@ -157,7 +157,7 @@ class Ktree:
 
         return {
             "nn": nn,
-            "cluster_index": node.index
+            "cluster_index": node.index,
             "predictions per layer": predictions_per_layer
         }
 
