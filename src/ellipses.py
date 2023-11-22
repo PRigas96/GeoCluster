@@ -6,6 +6,7 @@ from multiprocessing.pool import ThreadPool
 from multiprocessing import Pool
 
 import numpy as np
+import torch
 from matplotlib import pyplot as plt
 from math import pi, cos, sin, inf, ceil
 
@@ -15,6 +16,8 @@ def distance_between_points(p1: [int], p2: [int]):
 
 
 def distance_ellipse_2_point(ellipse, point):
+    ellipse = ellipse if not torch.is_tensor(ellipse) else ellipse.detach().numpy()
+    point = point if not torch.is_tensor(point) else point.detach().numpy()
     a = ellipse[0]
     b = ellipse[1]
     ellipse_center_x = ellipse[2]

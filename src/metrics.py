@@ -97,6 +97,9 @@ def Linf_array(q, c):
     return e
 
 def Linf_3d(cuboid, point):
+    cuboid = cuboid if not torch.is_tensor(cuboid) else cuboid.detach().numpy()
+    point = point if not torch.is_tensor(point) else point.detach().numpy()
+
     dx = [0.0, 0.0]
     dy = [0.0, 0.0]
     dz = [0.0, 0.0]
