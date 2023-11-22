@@ -126,6 +126,7 @@ class Ktree:
             - nn (object): The nearest neighbor data object with respect to the query point.
             - cluster_index (str): The index property of the leaf node the nearest neighbour belongs to.
         """
+        predictions_per_layer[]
         query_point = query_point if torch.is_tensor(query_point) else torch.tensor(query_point)
         # to device
         query_point = query_point.to(self.device)
@@ -133,6 +134,8 @@ class Ktree:
         #print(self.device)
 
         node = self.root
+        
+
         while not node.isLeaf():
             pred = node.student(query_point)
             #print(f"Predictions for node {node.index} are {pred}")
@@ -144,14 +147,18 @@ class Ktree:
                 if len(node.children[z].data) == 0:
                     continue
                 node = node.children[z]
+
+                predictions_per_layer.append(node.query(query_point))
                 break
 
         #print(f"Query point {query_point} belongs to node {node.index} ")
         nn = node.query(query_point)
+        predictions_per_layer.append(nn)
 
         return {
             "nn": nn,
             "cluster_index": node.index
+            "predictions per layer": predictions_per_layer
         }
 
     def query_maxsum(self, query_points):
