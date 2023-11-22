@@ -23,10 +23,10 @@ def loadData(numberOfData):
             theta: rotation angle of the square in rad
     """
     print("Loading data...")
-    ref = './data/squares/' + str(numberOfData) +'/'+ str(numberOfData) 
-    data = np.load(ref+'sq.npy')
+    ref = './data/squares/100/' + str(numberOfData)
+    data = np.load(ref + 'sq_1_4.npy')
     data[:, -1] = np.deg2rad(data[:, -1])
-    datapoints = np.load(ref+'qp.npy')
+    datapoints = []  # np.load(ref+'qp.npy')
     print("Data loaded.")
 
     return data, datapoints
