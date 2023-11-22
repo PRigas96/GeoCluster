@@ -79,6 +79,12 @@ class Ktree:
                 print(f"Creating student for node {node.index} that has {len(node.data)} data, which is more than the threshold {self.threshold}.")
                 node.create_student(save_path_index_prefix, plot)
                 node.divide()
+
+                # If the division is fully unbalanced, i.e. all data is put into one child,
+                # don't divide the node any further.
+                if max([len(child.data) for child in node.children]) == len(node.data):
+                    continue
+
                 for i in range(node.student.n_centroids):
                     queue.put(node.children[i])
 
@@ -315,7 +321,7 @@ class Ktree:
             predictor_width = self.ktree.teacher_args["predictor_width"]
             predictor_depth = self.ktree.teacher_args["predictor_depth"]
             latent_size = self.ktree.teacher_args["latent_size"]
-            latent_size = len(self.data)// 5
+            latent_size = len(self.data) // 2
             teacher = Teacher(n_of_centroids,
                               self.ktree.dim,
                               encoder_activation,
