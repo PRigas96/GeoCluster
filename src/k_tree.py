@@ -3,6 +3,7 @@ import numpy as np
 from src.models import Teacher, Student
 from queue import Queue
 from src.utils.functions import getUncertaintyArea, getE, NearestNeighbour
+from src.ebmUtils import loss_functional
 import math as m
 import matplotlib.pyplot as plt
 from src.utils import plot_tools as pt
@@ -473,7 +474,9 @@ class Ktree:
 
             # Store the trained student and the label predictions and regularised projection from the best epoch.
             self.student = student
-            self.best_z = teacher.best_z
+            e = loss_functional(teacher.best_outputs, torch.from_numpy(self.data).float().to(self.device),
+                                self.ktree.metric)
+            _, self.best_z = e.min(1)
             self.best_reg = teacher.reg_proj_array[teacher.best_epoch]
 
         def create_student_from_config(self, path):

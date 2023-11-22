@@ -6,6 +6,7 @@ from torch.distributions import Dirichlet
 from src.ebmUtils import Reg, RegLatent, loss_functional
 import matplotlib.pyplot as plt
 from copy import deepcopy
+import math as m
 
 class Teacher(nn.Module):
     """
@@ -55,6 +56,7 @@ class Teacher(nn.Module):
         for i in range(encoder_depth):
             # encoder will start from latent size and go to output dim in encoder_depth steps.  No width is needed
             times = latent_size // encoder_depth # e.g. 400 // 4 = 100
+            times = times if times != 0 else 1
             flag = encoder_activation
             if i == 0:
                 enc_layer.append(nn.Linear(latent_size, latent_size//(times*(i+1))))
@@ -200,6 +202,10 @@ class Teacher(nn.Module):
             print("Shuffling data")
             shuffle_flag = True
             num = 700
+        elif y_prep.shape[0] > 1000:
+            print("Shuffling data")
+            shuffle_flag = True
+            num = m.floor(0.1 * y_prep.shape[0])
         p_p, p_c = [], []
         reg_proj_array = []
         reg_latent_array = []
