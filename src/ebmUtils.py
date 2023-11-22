@@ -35,6 +35,7 @@ def Reg(outputs, bounding_box, node_index, parent_node):
         return reg_cost
     else:
         reg_cost += Reg(outputs, bounding_box, node_index[:-1], parent_node.parent)
+        reg_cost = 0.1 * layer * reg_cost
         child_label = torch.tensor([int(node_index[-1]) for _ in range(len(outputs))], dtype=torch.long)  # make tensor
         reg_cost += alpha * ce(parent_node.student(outputs), child_label)
     return reg_cost
