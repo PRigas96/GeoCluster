@@ -61,6 +61,7 @@ class Ktree:
         self.root = self.Node(self.data, "0", self, root_parent, device=device)
         self.dim = dim
         self.device = device
+        self.number_of_nodes = 1
         # self.root.create_student()   # Extract the trained student model for the root node.
 
     def create_tree(self, save_path_prefix="", plot=False):
@@ -79,6 +80,7 @@ class Ktree:
                 print(f"Creating student for node {node.index} that has {len(node.data)} data, which is more than the threshold {self.threshold}.")
                 node.create_student(save_path_index_prefix, plot)
                 node.divide()
+                self.number_of_nodes += self.teacher_args["number_of_centroids"]
 
                 # If the division is fully unbalanced, i.e. all data is put into one child,
                 # don't divide the node any further.
@@ -512,7 +514,7 @@ class Ktree:
                 #         def __init__(self, data, index, ktree, parent,device):
                 self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster}", self.ktree, self, self.device))
 
-        def query(self, query_point):
+        def query(self, query_point, k=1):
             # if it doesnt work try this:
             # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
             query_point.to(self.device)
@@ -525,8 +527,20 @@ class Ktree:
             #dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
             dists = torch.tensor([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
             # dists should be tensor
-            min_dist_index = dists.argmin()
-            return self.data[min_dist_index]
+
+
+            # min_dist_index = dists.argmin() #returns the exact nearest neighbor
+
+            # _, min_dist_indices = torch.topk(dists, k, largest=False) #we want to return the k nearest for now
+            # min_dist_indices = min_dist_indices.sort().indices
+            k_smallest_indices = np.argsort(dists)[:k]
+
+
+            # return self.data[min_dist_index]
+
+            k_nearest = [self.data[i] for i in k_smallest_indices]
+
+            return k_nearest
 
         def get_leaf_sums(self, query_points):
             """Recursive function to calculate the energy from the node's student predictions
