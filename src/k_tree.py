@@ -79,16 +79,11 @@ class Ktree:
                 print("="*20)
                 print(f"Creating student for node {node.index} that has {len(node.data)} data, which is more than the threshold {self.threshold}.")
                 node.create_student(save_path_index_prefix, plot)
-                node.divide()
-                self.number_of_nodes += self.teacher_args["number_of_centroids"]
-
-                # If the division is fully unbalanced, i.e. all data is put into one child,
-                # don't divide the node any further.
-                if max([len(child.data) for child in node.children]) == len(node.data):
-                    continue
-
-                for i in range(node.student.n_centroids):
-                    queue.put(node.children[i])
+                if node.student is not None:
+                    node.divide()
+                    self.number_of_nodes += node.student.n_centroids
+                    for i in range(node.student.n_centroids):
+                        queue.put(node.children[i])
 
     def get_leaves(self, node=None):
         """Returns a list of all the tree's leaf nodes (ordered "left to right").
@@ -349,7 +344,7 @@ class Ktree:
             teacher.train_(train_data=torch.from_numpy(self.data).float().to(self.device),
                            metric=self.ktree.metric, bounding_box=bounding_box, **teacher_args)
             teacher.load_state_dict(teacher.best_model_state)
-            
+
             # Save the model and some training results.
             if save_path_prefix != "":
                 # Save best model state to .pt format.
@@ -387,11 +382,29 @@ class Ktree:
                 pt.plotManifold(self.data, manifold, teacher.best_outputs.cpu(), bounding_box[0], bounding_box[1])
                 plt.show()
 
+            # Recalculate best_z indices since teacher.best_z is fuzzy from training.
+            e = loss_functional(teacher.best_outputs, torch.from_numpy(self.data).float().to(self.device),
+                                self.ktree.metric)
+            _, self.best_z = e.min(1)
+            # Keep only the centroids that appear in the data predictions.
+            # Also update the best_z indices to index only the kept centroids
+            # e.g. convert (1, 0, 3) to (1, 0, 2); since centroid 2 is missing we count index 3 as 2.
+            # Do so using the inverse indexing tensor of torch.unique().
+            best_z_unique, self.best_z = torch.unique(self.best_z, return_inverse=True)
+            centroids = teacher.best_outputs[best_z_unique]
+            n_of_centroids = len(centroids)
+            # Finally store the regularised projection from the best epoch.
+            self.best_reg = teacher.reg_proj_array[teacher.best_epoch]
+
+            # If the division is fully unbalanced, i.e. all data is put into one child, no need for a student.
+            if n_of_centroids == 1:
+                return
+
             """
             Uncertainty Area.
             """
             # Calculate the Uncertainty Area.
-            m_points = getUncertaintyArea(outputs=teacher.best_outputs.cpu().detach().numpy(),
+            m_points = getUncertaintyArea(outputs=centroids.cpu().detach().numpy(),
                                           bounding_box=bounding_box, **self.ktree.un_args)
             m_points = np.array(m_points)
             self.un_points = m_points
@@ -418,7 +431,7 @@ class Ktree:
             # Append data that their z_sq is i for each centroid.
             pseudo_clusters = [self.data[z_sq == i] for i in range(teacher.n_centroids)]
             # Create labels.
-            outputs_shape = (qp.shape[0], teacher.n_centroids)
+            outputs_shape = (qp.shape[0], n_of_centroids)
             F_ps = torch.zeros(outputs_shape)
             z_ps = torch.zeros(outputs_shape)
             for i in range(outputs_shape[0]):
@@ -487,12 +500,8 @@ class Ktree:
                 student.plot_accuracy_and_loss(student_args["epochs"])
                 plt.show()
 
-            # Store the trained student and the label predictions and regularised projection from the best epoch.
+            # Store the trained student.
             self.student = student
-            e = loss_functional(teacher.best_outputs, torch.from_numpy(self.data).float().to(self.device),
-                                self.ktree.metric)
-            _, self.best_z = e.min(1)
-            self.best_reg = teacher.reg_proj_array[teacher.best_epoch]
 
         def create_student_from_config(self, path):
             width = self.ktree.student_args["width"]
@@ -505,9 +514,11 @@ class Ktree:
         def isLeaf(self):
             return len(self.children) == 0
 
-        # Create 4 child nodes, where every child stores one of the four clusters produced.
         def divide(self):
-            # Retrieve the data that exist in each of the clusters.
+            """Retrieve the data that exist in each of the clusters.
+                Create child nodes where every child stores one cluster, each containing
+                the data that the teacher predicted each centroid is closest (best_z).
+            """
             for cluster in range(self.student.n_centroids):
                 cluster_data = self.data[self.best_z == cluster]
                 # Create a child node with the corresponding data.
