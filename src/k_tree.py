@@ -426,10 +426,9 @@ class Ktree:
             """
             qp = np.random.permutation(m_points)
             qp = torch.tensor(qp)
-            F, z, F_sq, z_sq = getE(teacher, teacher.best_outputs, qp, self.data, self.ktree.metric)
             # Initialize the pseudo clusters.
-            # Append data that their z_sq is i for each centroid.
-            pseudo_clusters = [self.data[z_sq == i] for i in range(teacher.n_centroids)]
+            # Append data that their best_z is i for each centroid.
+            pseudo_clusters = [self.data[self.best_z == i] for i in range(n_of_centroids)]
             # Create labels.
             outputs_shape = (qp.shape[0], n_of_centroids)
             F_ps = torch.zeros(outputs_shape)
