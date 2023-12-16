@@ -5,6 +5,7 @@ from queue import Queue
 from src.utils.functions import getUncertaintyArea, getE, NearestNeighbour
 from src.ebmUtils import loss_functional
 import math as m
+from pathlib import Path
 import matplotlib.pyplot as plt
 from src.utils import plot_tools as pt
 
@@ -84,6 +85,34 @@ class Ktree:
                     self.number_of_nodes += node.student.n_centroids
                     for i in range(node.student.n_centroids):
                         queue.put(node.children[i])
+
+    def create_tree_from_config(self, path_prefix):
+        queue = Queue()
+        queue.put(self.root)
+
+        while not queue.empty():
+            node = queue.get()
+            path = Path(path_prefix + node.index + "_student_config.pt")
+
+            # If there is no student config, the node is a leaf so do nothing.
+            if not path.is_file():
+                continue
+
+            node.create_student_from_config(str(path))
+
+            # Calculate best_z indices in order to divide the node data afterward.
+            # See relevant comments in "Node.create_student" post teacher training.
+            centroids = np.load(path_prefix + node.index + "_teacher_training_results.npy",
+                                allow_pickle=True).item()["best_outputs"]
+            e = loss_functional(centroids, torch.from_numpy(node.data).float().to(self.device), self.metric)
+            _, node.best_z = e.min(1)
+            best_z_unique, node.best_z = torch.unique(node.best_z, return_inverse=True)
+
+            # Divide the node and add its children to the queue.
+            node.divide()
+            self.number_of_nodes += node.student.n_centroids
+            for child in node.children:
+                queue.put(child)
 
     def get_leaves(self, node=None):
         """Returns a list of all the tree's leaf nodes (ordered "left to right").
@@ -505,7 +534,14 @@ class Ktree:
         def create_student_from_config(self, path):
             width = self.ktree.student_args["width"]
             depth = self.ktree.student_args["depth"]
-            student = Student(2**self.ktree.dim, self.ktree.dim, self.ktree.dim, width, depth).to(self.device)  # initialize the voronoi network
+
+            # Get the model parameters from the state dict.
+            state_dict = torch.load(path)
+            # Last predictor layer has bias shape (n_centroids,).
+            n_centroids = state_dict[f"predictor.{2 * depth - 2}.bias"].shape[0]
+
+            # Build the student object and assign it to the node.
+            student = Student(n_centroids, self.ktree.dim, self.ktree.dim, width, depth).to(self.device)  # initialize the voronoi network
             student.load_state_dict(torch.load(path))
             student.eval()
             self.student = student
