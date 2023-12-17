@@ -163,16 +163,12 @@ class Ktree:
         
         while not node.isLeaf():
             pred = node.student(query_point)
-            #print(f"Predictions for node {node.index} are {pred}")
             z = pred.argmax()
             node = node.children[z]
             predictions_per_layer.append(node.query(query_point))
 
-        #print(f"Query point {query_point} belongs to node {node.index} ")
-        predicted_nn = node.query(query_point)
-        predictions_per_layer.append(predicted_nn)
         return {
-            "nn": predicted_nn,
+            "nn": predictions_per_layer[-1],
             "cluster_index": node.index,
             "predictions per layer": predictions_per_layer
         }
@@ -302,7 +298,7 @@ class Ktree:
                     predicted_z = node.student(query_point)
                     z = predicted_z.argmax()
                     predicted_nn = node.children[z].query(query_point)
-                    exact_nn = self.root.query(query_point)
+                    exact_nn = node.query(query_point)
                     if np.array_equal(predicted_nn, exact_nn):
                         if node.index not in correct_predictions_per_student:
                             correct_predictions_per_student[node.index] = 0
