@@ -161,28 +161,18 @@ class Ktree:
 
         node = self.root
         
-
         while not node.isLeaf():
             pred = node.student(query_point)
             #print(f"Predictions for node {node.index} are {pred}")
-            # Get an index array of the prediction's max to min values.
-            _, z_ordered = pred.topk(node.student.n_centroids)  # Get the indices of prediction
-            # If the child's data are empty, continue to the next z.
-            # Otherwise, set that child as current node and break (the for loop).
-            for z in z_ordered:
-                if len(node.children[z].data) == 0:
-                    continue
-                node = node.children[z]
-
-                predictions_per_layer.append(node.query(query_point))
-                break
+            z = pred.argmax()
+            node = node.children[z]
+            predictions_per_layer.append(node.query(query_point))
 
         #print(f"Query point {query_point} belongs to node {node.index} ")
-        nn = node.query(query_point)
-        predictions_per_layer.append(nn)
-
+        predicted_nn = node.query(query_point)
+        predictions_per_layer.append(predicted_nn)
         return {
-            "nn": nn,
+            "nn": predicted_nn,
             "cluster_index": node.index,
             "predictions per layer": predictions_per_layer
         }
@@ -298,6 +288,26 @@ class Ktree:
                                for samples_cluster in samples_cluster_indices]
         ax = plt.axes(projection='3d' if self.dim == 3 else None)
         ax.scatter(*tuple(samples[:, i] for i in range(samples.shape[1])), c=sample_clusters_ids)
+
+    def get_student_accuracies(self, query_points):
+        queue = Queue()
+        queue.put(self.root)
+        correct_predictions_per_student = {}
+        student_accuracies = {}
+
+        while not queue.empty():
+            node = queue.get()
+            while not node.isLeaf():
+                for query_point in query_points:
+                    predicted_z = node.student(query_point)
+                    z = predicted_z.argmax()
+                    predicted_nn = node.children[z].query(query_point)
+                    exact_nn = self.root.query(query_point)
+                    if(np.equal(predicted_nn, exact_nn)):
+                        correct_predictions_per_student[node.index] +=1
+                student_accuracies[node.index] = correct_predictions_per_student[node.index]/len(query_points)
+
+        return student_accuracies
 
     class Node:
         """Implements a node class to use in a tree."""
