@@ -297,15 +297,21 @@ class Ktree:
 
         while not queue.empty():
             node = queue.get()
-            while not node.isLeaf():
+            if not node.isLeaf():
                 for query_point in query_points:
                     predicted_z = node.student(query_point)
                     z = predicted_z.argmax()
                     predicted_nn = node.children[z].query(query_point)
                     exact_nn = self.root.query(query_point)
-                    if(np.equal(predicted_nn, exact_nn)):
-                        correct_predictions_per_student[node.index] +=1
+                    if np.array_equal(predicted_nn, exact_nn):
+                        if node.index not in correct_predictions_per_student:
+                            correct_predictions_per_student[node.index] = 0
+                        else:
+                            correct_predictions_per_student[node.index] += 1
                 student_accuracies[node.index] = correct_predictions_per_student[node.index]/len(query_points)
+
+                for child in node.children:
+                    queue.put(child)
 
         return student_accuracies
 
