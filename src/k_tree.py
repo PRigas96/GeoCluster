@@ -51,8 +51,8 @@ class Ktree:
                  device,
                  dim=2):
         # self.boundary = boundary        #The given bounding box
-        self.threshold = threshold      # Minimum number of data (objects) in a node.
-        self.data = data                # The input data (objects).
+        self.threshold = threshold  # Minimum number of data (objects) in a node.
+        self.data = data  # The input data (objects).
         self.metric = metric
         self.teacher_args = teacher_args
         self.un_args = un_args
@@ -77,8 +77,9 @@ class Ktree:
             # Create the student and divide the node if the data has size less than the defined threshold.
             if len(node.data) > self.threshold:
                 print()
-                print("="*20)
-                print(f"Creating student for node {node.index} that has {len(node.data)} data, which is more than the threshold {self.threshold}.")
+                print("=" * 20)
+                print(
+                    f"Creating student for node {node.index} that has {len(node.data)} data, which is more than the threshold {self.threshold}.")
                 node.create_student(save_path_index_prefix, plot)
                 if node.student is not None:
                     node.divide()
@@ -123,7 +124,7 @@ class Ktree:
         node = node if node is not None else self.root
 
         if node.isLeaf():
-            return [node] # Return a list with the leaf node itself as its only element.
+            return [node]  # Return a list with the leaf node itself as its only element.
 
         leaves = []
         for i in range(len(node.children)):
@@ -156,11 +157,11 @@ class Ktree:
         query_point = query_point if torch.is_tensor(query_point) else torch.tensor(query_point)
         # to device
         query_point = query_point.to(self.device)
-        #print(f"Querying point {query_point}...")
-        #print(self.device)
+        # print(f"Querying point {query_point}...")
+        # print(self.device)
 
         node = self.root
-        
+
         while not node.isLeaf():
             pred = node.student(query_point)
             z = pred.argmax()
@@ -176,13 +177,13 @@ class Ktree:
     def query_maxsum(self, query_points):
         leaves = self.get_leaves()
         leaf_sums = self.root.get_leaf_sums(query_points)
-        #print("Leaf_sums are:",leaf_sums)
+        # print("Leaf_sums are:",leaf_sums)
         _, maxsum_indices = leaf_sums.max(1)
-        #print("Maxsum_indices are:",maxsum_indices)
-        #print(f"Nn is: {leaves[maxsum_indices[0]].query(query_points[0])}")
+        # print("Maxsum_indices are:",maxsum_indices)
+        # print(f"Nn is: {leaves[maxsum_indices[0]].query(query_points[0])}")
         return [leaves[maxsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
-    
-    def querry_knn_per_layer(self, query_points, k, eps = 0):
+
+    def querry_knn_per_layer(self, query_points, k, eps=0):
         """
             #TODO: implement this
             Get k best choices per layer, or eps
@@ -200,12 +201,12 @@ class Ktree:
             layers = []
             while not layer.isLeaf():
                 pred = layer.student(query_points)
-                _, z_ordered = pred.topk(k) # Get the indices of prediction
+                _, z_ordered = pred.topk(k)  # Get the indices of prediction
                 # check if 2 predictions are inside ball
                 diff = pred - max(pred)
                 for i in range(len(diff)):
                     if diff[i] < eps:
-                        #TODO: if 2 predictions are inside the ball, search them both
+                        # TODO: if 2 predictions are inside the ball, search them both
                         z_ordered = [z_ordered[0], z_ordered[i]]
                 else:
                     # pick only the first
@@ -223,10 +224,10 @@ class Ktree:
     def query_maxcumsum(self, query_points):
         leaves = self.get_leaves()
         leaves_sum = self.root.get_leaf_cumsums(query_points)
-        #print("Leaf_sums are(cumsum):",leaves_sum)
+        # print("Leaf_sums are(cumsum):",leaves_sum)
         _, maxcumsum_indices = leaves_sum.max(1)
-        #print("Maxcumsum_indices are:",maxcumsum_indices)
-        #print(f"Nn is: {leaves[maxcumsum_indices[0]].query(query_points[0])}")
+        # print("Maxcumsum_indices are:",maxcumsum_indices)
+        # print(f"Nn is: {leaves[maxcumsum_indices[0]].query(query_points[0])}")
         return [leaves[maxcumsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
 
     def plot_leaf_clusters(self, n_samples=2000):
@@ -304,7 +305,7 @@ class Ktree:
                             correct_predictions_per_student[node.index] = 0
                         else:
                             correct_predictions_per_student[node.index] += 1
-                student_accuracies[node.index] = correct_predictions_per_student[node.index]/len(query_points)
+                student_accuracies[node.index] = correct_predictions_per_student[node.index] / len(query_points)
 
                 for child in node.children:
                     queue.put(child)
@@ -314,9 +315,9 @@ class Ktree:
     class Node:
         """Implements a node class to use in a tree."""
 
-        def __init__(self, data, index, ktree, parent,device):
+        def __init__(self, data, index, ktree, parent, device):
             """Initialise the class."""
-            #self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # never 
+            # self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # never
             self.device = device
             self.data = data
             self.student = None
@@ -354,12 +355,12 @@ class Ktree:
             """
             Teacher model.
             """
-            
+
             # Create and train the teacher model.
             n_of_centroids = self.ktree.teacher_args["number_of_centroids"]
             print(f"Creating teacher for node {self.index} with {n_of_centroids} centroids.")
             if n_of_centroids == 0:
-                n_of_centroids = 2**self.ktree.dim
+                n_of_centroids = 2 ** self.ktree.dim
 
             encoder_activation = self.ktree.teacher_args["encoder_activation"]
             encoder_depth = self.ktree.teacher_args["encoder_depth"]
@@ -373,9 +374,9 @@ class Ktree:
                               encoder_depth,
                               predictor_width,
                               predictor_depth,
-                              latent_size, 
-                              self.index, 
-                              self.parent, 
+                              latent_size,
+                              self.index,
+                              self.parent,
                               self.ktree.dim).to(self.device)
             # Populate the optimizer with the model parameters and the learning rate.
             teacher_args = self.ktree.teacher_args.copy()
@@ -408,7 +409,7 @@ class Ktree:
                 }
                 np.save(f"{save_path_prefix}_teacher_training_results.npy", teacher_results)
                 print(f"Saved teacher training results to {save_path_prefix}_teacher_training_results.npy")
-            
+
             # Plot training results.
             if plot:
                 # Plot the Amplitude demodulation of the signal (costs array).
@@ -449,7 +450,7 @@ class Ktree:
                                           bounding_box=bounding_box, **self.ktree.un_args)
             m_points = np.array(m_points)
             self.un_points = m_points
-            
+
             # Plot the Uncertainty Area.
             if plot:
                 # Plot the m points that are in the uncertainty area.
@@ -479,11 +480,12 @@ class Ktree:
                     print(f"Labeled {i}/{outputs_shape[0]} points.")
                 for j in range(outputs_shape[1]):
                     qpoint = qp[i].cpu().detach().numpy()
-                    F_ps[i, j], z_ps[i, j] = torch.tensor(NearestNeighbour(qpoint, pseudo_clusters[j], self.ktree.metric))
+                    F_ps[i, j], z_ps[i, j] = torch.tensor(
+                        NearestNeighbour(qpoint, pseudo_clusters[j], self.ktree.metric))
             print(f"Labeled all {outputs_shape[0]}/{outputs_shape[0]} points.")
             self.un_labels = z_ps
             self.un_energy = F_ps
-            
+
             # Plot the labels.
             if plot:
                 # plot qp
@@ -503,13 +505,14 @@ class Ktree:
             Student model.
             """
             # Create and train the student model and assign the best state found during training.
-            
+
             student_args = self.ktree.student_args
             width = student_args["width"]
             depth = student_args["depth"]
             print(f"Creating student for node {self.index} with {n_of_centroids} centroids.")
             print("Device is:", self.device)
-            student = Student(n_of_centroids, self.ktree.dim, self.ktree.dim, width, depth).to(self.device)  # initialize the voronoi network
+            student = Student(n_of_centroids, self.ktree.dim, self.ktree.dim, width, depth).to(
+                self.device)  # initialize the voronoi network
             student.train_(optimizer=torch.optim.Adam(student.parameters(), lr=student_args["optimizer_lr"]),
                            epochs=student_args["epochs"],
                            device=self.device,
@@ -518,7 +521,7 @@ class Ktree:
                            )
             student.eval()
             student.load_state_dict(student.best_vor_model_state)
-            
+
             # Save the model and some training results.
             if save_path_prefix != "":
                 # Save voronoi model.
@@ -534,7 +537,7 @@ class Ktree:
                 }
                 np.save(f"{save_path_prefix}_student_training_results.npy", student_results)
                 print(f"Saved teacher training results to {save_path_prefix}_student_training_results.npy")
-            
+
             # Plot the student training results.
             if plot:
                 student.plot_accuracy_and_loss(student_args["epochs"])
@@ -553,7 +556,8 @@ class Ktree:
             n_centroids = state_dict[f"predictor.{2 * depth - 2}.bias"].shape[0]
 
             # Build the student object and assign it to the node.
-            student = Student(n_centroids, self.ktree.dim, self.ktree.dim, width, depth).to(self.device)  # initialize the voronoi network
+            student = Student(n_centroids, self.ktree.dim, self.ktree.dim, width, depth).to(
+                self.device)  # initialize the voronoi network
             student.load_state_dict(torch.load(path))
             student.eval()
             self.student = student
@@ -577,22 +581,22 @@ class Ktree:
             # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
             query_point.to(self.device)
             query_point = torch.tensor(query_point) if not torch.is_tensor(query_point) else query_point
-            #print("Query device is:", query_point.device)
-            #print("Data device are: ")
-            #print(torch.from_numpy(self.data[0]).double().to(self.device))
-            #print("Data[0] device are: ", self.data[0].device)
-            #dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
-            #dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
-            dists = torch.tensor([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
+            # print("Query device is:", query_point.device)
+            # print("Data device are: ")
+            # print(torch.from_numpy(self.data[0]).double().to(self.device))
+            # print("Data[0] device are: ", self.data[0].device)
+            # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
+            # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
+            dists = torch.tensor(
+                [self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in
+                 range(len(self.data))])
             # dists should be tensor
-
 
             # min_dist_index = dists.argmin() #returns the exact nearest neighbor
 
             # _, min_dist_indices = torch.topk(dists, k, largest=False) #we want to return the k nearest for now
             # min_dist_indices = min_dist_indices.sort().indices
             k_smallest_indices = np.argsort(dists)[:k]
-
 
             # return self.data[min_dist_index]
 

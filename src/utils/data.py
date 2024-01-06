@@ -5,6 +5,7 @@ import src.geometry as geo
 # from sklearn.datasets import make_moons
 import matplotlib.pyplot as plt
 
+
 def loadData(numberOfData):
     """
         Load data from data folder
@@ -31,6 +32,7 @@ def loadData(numberOfData):
 
     return data, datapoints
 
+
 def create_data(number_of_data, x0, size0, rotation0):
     data = []
     cnt = 1
@@ -39,11 +41,12 @@ def create_data(number_of_data, x0, size0, rotation0):
     max_num_of_collisions = 0.05 * number_of_data
     num_of_collisions = 0
 
-    while cnt != number_of_data+1:
-        if(cnt >= len(x0)):
+    while cnt != number_of_data + 1:
+        if (cnt >= len(x0)):
             break
 
-        if (cnt == 1000) | (cnt == 5000) | (cnt == 10000) | (cnt == 25000) | (cnt == 35000)| (cnt == 45000)| (cnt == 50000):
+        if (cnt == 1000) | (cnt == 5000) | (cnt == 10000) | (cnt == 25000) | (cnt == 35000) | (cnt == 45000) | (
+                cnt == 50000):
             print("reached ", cnt, " squares!")
             np.save(f"./data/squares/100/{cnt}sq_1_4.npy", data)
 
@@ -92,13 +95,14 @@ def loadData_3d(numberOfData, numberOfQueryPoints):
     """
     print("Loading data...")
     ref_data = './data_3d/10000cb/' + str(numberOfData) + 'cb_1_4.npy'
-    ref_query_points = './data/squares/' + str(numberOfQueryPoints) +'/'+ str(numberOfQueryPoints)
+    ref_query_points = './data/squares/' + str(numberOfQueryPoints) + '/' + str(numberOfQueryPoints)
     data = np.load(ref_data)
     data[:, -1] = np.deg2rad(data[:, -1])
-    datapoints = np.load(ref_query_points+'qp.npy')
+    datapoints = np.load(ref_query_points + 'qp.npy')
     print("Data loaded.")
 
     return data, datapoints
+
 
 def create_data_3d(numberOfData, x0, width, height, depth, theta, psi, phi, cube=True, axis_aligned=True):
     """
@@ -120,36 +124,36 @@ def create_data_3d(numberOfData, x0, width, height, depth, theta, psi, phi, cube
     """
     data = []
     point_cnt = 0
-    cnt = 1 #Keep track of cuboids created so far
+    cnt = 1  # Keep track of cuboids created so far
 
-    #Maximum number of collisions allowed - If reached, the generation of cuboids stops
+    # Maximum number of collisions allowed - If reached, the generation of cuboids stops
     maximum_num_of_collisions = 0.05 * numberOfData
     num_of_collisions = 0
 
-    while cnt != numberOfData+1:
-        if(cnt >= len(x0)):
+    while cnt != numberOfData + 1:
+        if (cnt >= len(x0)):
             break
-        #Store the results for every 500 cuboids created, starting from 1.000 and ending to 10.000
+        # Store the results for every 500 cuboids created, starting from 1.000 and ending to 10.000
         if 10000 <= cnt <= 50000 and (cnt - 10000) % 5000 == 0:
             print("reached ", cnt, " cuboids!")
             np.save(f"./data_3d/10000cb/{cnt}cb_1_4.npy", data)
 
         print("creating square ", cnt, "\n")
-        #Create the square with random center of mass
+        # Create the square with random center of mass
         x = x0[point_cnt][0]
         y = x0[point_cnt][1]
         z = x0[point_cnt][2]
         point_cnt += 1
 
-        #Check if the cuboid is actually a cube or not. Shape it accordingly
-        if(cube):
+        # Check if the cuboid is actually a cube or not. Shape it accordingly
+        if (cube):
             wid = hei = dep = random.choice(width)
         else:
             wid = random.choice(width)
             hei = random.choice(height)
             dep = random.choice(depth)
 
-        if(axis_aligned):
+        if (axis_aligned):
             th = ps = ph = 0
         else:
             th = random.choice(theta)
@@ -157,7 +161,7 @@ def create_data_3d(numberOfData, x0, width, height, depth, theta, psi, phi, cube
             ph = random.choice(phi)
 
         current_cuboid = np.array([x, y, z, wid, hei, dep, th, ps, ph])
-        #Check if the current cuboid intersects with any of the cuboids in the data
+        # Check if the current cuboid intersects with any of the cuboids in the data
         if not geo.check_intersection_3d(data, current_cuboid):
             data.append(current_cuboid)
             cnt += 1
@@ -165,13 +169,14 @@ def create_data_3d(numberOfData, x0, width, height, depth, theta, psi, phi, cube
         else:
             num_of_collisions += 1
             print("num of collisions is: ", num_of_collisions)
-            #Terminate if maximum number of collisions reached
+            # Terminate if maximum number of collisions reached
             if num_of_collisions == maximum_num_of_collisions:
                 print(
                     "max number of collisions reached! dataset creation terminates!\n"
                 )
                 break
     return data
+
 
 def create2moons4squares(**kwargs):
     """
@@ -219,10 +224,10 @@ def create2moons4squares(**kwargs):
             }
             data = create2moons4squares(**args)
     """
-    x_lim = kwargs["x_lim"] # [0, 300]
-    y_lim = kwargs["y_lim"] # [0, 300]
-    w_lim = kwargs["w_lim"] # [1,4]
-    theta_lim = kwargs["theta_lim"] # [0, 2pi]
+    x_lim = kwargs["x_lim"]  # [0, 300]
+    y_lim = kwargs["y_lim"]  # [0, 300]
+    w_lim = kwargs["w_lim"]  # [1,4]
+    theta_lim = kwargs["theta_lim"]  # [0, 2pi]
     plot = kwargs["plot"]
     noise = kwargs["noise"]
     numberOfData = kwargs["numberOfData"]
@@ -244,7 +249,7 @@ def create2moons4squares(**kwargs):
         X[:, 0] -= x_min
         X[:, 1] -= y_min
         if scale:
-            X *= x_lim[1]  * scale_factor
+            X *= x_lim[1] * scale_factor
     if plot:
         if numberOfMoons == 1:
             plt.scatter(X[:, 0], X[:, 1])
@@ -253,14 +258,15 @@ def create2moons4squares(**kwargs):
             plt.scatter(X[:, 0], X[:, 1], c=y)
             plt.show()
     squares = []
-    
+
     def check_for_intersection(square, squares):
         for i in range(squares.__len__()):
-            if square[0] < squares[i][0] + squares[i][2] and square[0] + square[2] > squares[i][0] and square[1] < squares[i][1] + squares[i][2] and square[1] + square[2] > squares[i][1]:
+            if square[0] < squares[i][0] + squares[i][2] and square[0] + square[2] > squares[i][0] and square[1] < \
+                    squares[i][1] + squares[i][2] and square[1] + square[2] > squares[i][1]:
                 return True
         return False
-    
-    for i in range(numberOfData-1):
+
+    for i in range(numberOfData - 1):
         x = int(X[i, 0])
         y = int(X[i, 1])
         w = np.random.randint(w_lim[0], w_lim[1])
@@ -280,16 +286,17 @@ def create2moons4squares(**kwargs):
         y_lim = [squares[:, 1].min(), squares[:, 1].max()]
         fig, ax = plt.subplots()
         for square in squares:
-            ax.add_patch(plt.Rectangle((square[0], square[1]), square[2], square[2], angle=square[3], color='r', fill=False))
-        
+            ax.add_patch(
+                plt.Rectangle((square[0], square[1]), square[2], square[2], angle=square[3], color='r', fill=False))
+
         plt.xlim(x_lim)
         plt.ylim(y_lim)
         plt.show()
     # make degrees to radians
     squares[:, 3] = np.deg2rad(squares[:, 3])
     return squares
-        
-        
+
+
 def createSquares(**kwargs):
     """
         Create squares for given data points
@@ -354,11 +361,14 @@ def createSquares(**kwargs):
     theta_lim = kwargs['theta_lim']
     numberOfData = kwargs['numberOfData']
     squares = []
+
     def check_for_intersection(square, squares):
         for i in range(squares.__len__()):
-            if square[0] < squares[i][0] + squares[i][2] and square[0] + square[2] > squares[i][0] and square[1] < squares[i][1] + squares[i][2] and square[1] + square[2] > squares[i][1]:
+            if square[0] < squares[i][0] + squares[i][2] and square[0] + square[2] > squares[i][0] and square[1] < \
+                    squares[i][1] + squares[i][2] and square[1] + square[2] > squares[i][1]:
                 return True
         return False
+
     for i in range(numberOfData):
         x = int(X[i, 0])
         y = int(X[i, 1])
@@ -374,7 +384,3 @@ def createSquares(**kwargs):
     squares[:, 1] -= y_mean
     squares[:, 3] = np.deg2rad(squares[:, 3])
     return squares
-
-
-
-    

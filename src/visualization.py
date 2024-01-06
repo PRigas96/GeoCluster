@@ -6,9 +6,7 @@ from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
 
-
-
-def plot_data(obj, size=10, limits=[0,300,0,300]):
+def plot_data(obj, size=10, limits=[0, 300, 0, 300]):
     """
         Plot the data points 
 
@@ -36,11 +34,10 @@ def plot_data(obj, size=10, limits=[0,300,0,300]):
 
     p = PatchCollection(patches, cmap=matplotlib.cm.jet, alpha=0.4)
 
-    colors = 100*np.random.rand(len(patches))
+    colors = 100 * np.random.rand(len(patches))
     p.set_array(np.array(colors))
 
     ax.add_collection(p)
     ax.set_xlim(limits[0], limits[1])
     ax.set_ylim(limits[2], limits[3])
     plt.show()
-

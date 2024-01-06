@@ -4,10 +4,11 @@ import numpy as np
 from src.ebmUtils import loss_functional
 from src.metrics import Linf_array
 
-
 """
 These are ebm_utils, getUncertaintyArea and getE. I think you should move them there instead of here.
 """
+
+
 # will sample points on the voronoi edges
 # we will label them and fine tune a student network
 # the sampler will be a module or a function?
@@ -27,7 +28,7 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
 
         #TODO: Create more clever UN sampling
     """
-    print("="*20)
+    print("=" * 20)
     print("getUncertaintyArea")
     print(f'Ouputs are {outputs}')
     dim = outputs.shape[1]
@@ -40,7 +41,7 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
     for i in range(N ** dim):
         n_points[i] = torch.tensor([spaces[d][(i // (N ** d)) % N] for d in range(dim)])
     # plot n_points
- 
+
     E = Linf_array(n_points, torch.tensor(outputs))
     if dim == 3:
         # plot dx, dy, dz in n_points
@@ -52,13 +53,14 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
         z = E.argmin(1)
         print(f'z is {z.shape}')
         debug = False
-        if debug:   
+        if debug:
             try:
                 import matplotlib.pyplot as plt
                 from mpl_toolkits.mplot3d import Axes3D
                 fig = plt.figure()
                 ax = fig.add_subplot(111, projection='3d')
-                ax.scatter(n_points[:, 0], n_points[:, 1], n_points[:, 2],c=z,cmap='viridis', marker='o', s = 1,alpha = 0.3)
+                ax.scatter(n_points[:, 0], n_points[:, 1], n_points[:, 2], c=z, cmap='viridis', marker='o', s=1,
+                           alpha=0.3)
                 ax.set_xlabel('X Label')
                 ax.set_ylabel('Y Label')
                 ax.set_zlabel('Z Label')
@@ -86,7 +88,7 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
                 cnt += 1
         if cnt == 1:
             # eps = eps * (1*F1/300 + 200/300) # new eps
-            eps = eps * (1 / (F1 * 0.0001*(10*dim)))
+            eps = eps * (1 / (F1 * 0.0001 * (10 * dim)))
             # only 2 centroids are close => 1/F1
             tmp = False
             for j in range(E1.shape[0]):
@@ -162,7 +164,7 @@ def getE(model, best_outputs, qp, sq, metric):
             E[i, j] = torch.max(torch.abs(outputs[i] - qp[j]))
     F, z = E.min(0)
     # now do the same for sq
-    #outputs = outputs.detach().numpy()
+    # outputs = outputs.detach().numpy()
     E_sq = loss_functional(outputs, sq, metric)
     F_sq, z_sq = E_sq.min(1)
 

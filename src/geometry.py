@@ -5,7 +5,6 @@ import torch
 import torch.nn.functional as F
 
 
-
 def IsPointInsidePoly(vertex, poly_vertices):
     """
         Check if a point is inside a given polygon or not
@@ -40,6 +39,7 @@ def IsPointInsidePoly(vertex, poly_vertices):
 
     return result
 
+
 # given a square, we retrieve its 4 vertices
 # the square is represented as a vector of
 # center of mass, edge size and rotation
@@ -65,7 +65,8 @@ def create_square2(square):
     ])
 
     # make all values from float->double
-    rotated_vertices = torch.mm(vertices - torch.tensor([x_center, y_center]), rotation_matrix.t()) + torch.tensor([x_center, y_center])
+    rotated_vertices = torch.mm(vertices - torch.tensor([x_center, y_center]), rotation_matrix.t()) + torch.tensor(
+        [x_center, y_center])
 
     return rotated_vertices
 
@@ -88,14 +89,14 @@ def create_square2_np(square):
     rotation = square[3]
 
     # calculate the coordinates of the vertices as if the square is not rotated
-    x1 = x_center - (size/2)
-    y1 = y_center - (size/2)
-    x2 = x_center - (size/2)
-    y2 = y_center + (size/2)
-    x3 = x_center + (size/2)
-    y3 = y_center + (size/2)
-    x4 = x_center + (size/2)
-    y4 = y_center - (size/2)
+    x1 = x_center - (size / 2)
+    y1 = y_center - (size / 2)
+    x2 = x_center - (size / 2)
+    y2 = y_center + (size / 2)
+    x3 = x_center + (size / 2)
+    y3 = y_center + (size / 2)
+    x4 = x_center + (size / 2)
+    y4 = y_center - (size / 2)
 
     vertice1 = [x1, y1]
     vertice2 = [x2, y2]
@@ -105,7 +106,7 @@ def create_square2_np(square):
     # then rotate the vertices according to the given rotation
     # the reference point of the rotation is the center of mass of the square
 
-    #We will not use rotation for now
+    # We will not use rotation for now
     # vertice1 = rotate_point(vertice1, mass_center, rotation)
     # vertice2 = rotate_point(vertice2, mass_center, rotation)
     # vertice3 = rotate_point(vertice3, mass_center, rotation)
@@ -114,6 +115,7 @@ def create_square2_np(square):
     vertices = np.array([vertice1, vertice2, vertice3, vertice4])
 
     return vertices
+
 
 def create_cuboid(cuboid):
     """
@@ -126,7 +128,7 @@ def create_cuboid(cuboid):
             np.array: 8x3 array of the vertices of the cuboid
     """
 
-    #Get the data of the cuboid
+    # Get the data of the cuboid
     x_center = cuboid[0]
     y_center = cuboid[1]
     z_center = cuboid[2]
@@ -140,7 +142,8 @@ def create_cuboid(cuboid):
 
     # Calculate the coordinates of the vertices as if the cuboid is not rotated
     vertices = np.zeros((8, 3))
-    offsets = np.array([[1, 1, 1], [1, -1, 1], [-1, -1, 1], [-1, 1, 1], [1, 1, -1], [1, -1, -1], [-1, -1, -1], [-1, 1, -1]])
+    offsets = np.array(
+        [[1, 1, 1], [1, -1, 1], [-1, -1, 1], [-1, 1, 1], [1, 1, -1], [1, -1, -1], [-1, -1, -1], [-1, 1, -1]])
 
     for i in range(8):
         vertices[i] = mass_center + np.multiply(offsets[i], [width / 2, height / 2, depth / 2])
@@ -152,6 +155,7 @@ def create_cuboid(cuboid):
     #     vertices[i] = rotate_point3(vertices[i], mass_center, phi)
 
     return vertices
+
 
 def rotate_point3(point, center, angle):
     """
@@ -174,7 +178,6 @@ def rotate_point3(point, center, angle):
     z_new = z_shifted
 
     return [x_new, y_new, z_new]
-
 
 
 # rotate a point in response to a reference point
@@ -269,6 +272,7 @@ def get_edges(vertices):
                 edges_set.add(edge_tuple)
     return edges
 
+
 def check_if_intersect3_simple(cuboid1, cuboid2):
     cube1_x = [vertex[0] for vertex in cuboid1]
     cube1_y = [vertex[1] for vertex in cuboid1]
@@ -293,6 +297,7 @@ def check_if_intersect3_simple(cuboid1, cuboid2):
     # If no axis misalignment is found, cubes intersect
     return True
 
+
 def check_if_intersect3(cuboid1, cuboid2):
     """
         Check if two 3D cuboids intersect
@@ -312,6 +317,7 @@ def check_if_intersect3(cuboid1, cuboid2):
                 return True
     return False
 
+
 def check_intersect(p1, q1, p2, q2):
     """
         Check if two line segments intersect
@@ -325,6 +331,7 @@ def check_intersect(p1, q1, p2, q2):
         Returns:
             bool: True if the two line segments intersect, False otherwise
     """
+
     def orientation(p, q, r):
         val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
         if val == 0:
@@ -332,7 +339,8 @@ def check_intersect(p1, q1, p2, q2):
         return 1 if val > 0 else 2
 
     def on_segment(p, q, r):
-        return q[0] <= max(p[0], r[0]) and q[0] >= min(p[0], r[0]) and q[1] <= max(p[1], r[1]) and q[1] >= min(p[1], r[1])
+        return q[0] <= max(p[0], r[0]) and q[0] >= min(p[0], r[0]) and q[1] <= max(p[1], r[1]) and q[1] >= min(p[1],
+                                                                                                               r[1])
 
     o1 = orientation(p1, q1, p2)
     o2 = orientation(p1, q1, q2)
@@ -357,7 +365,6 @@ def check_intersect(p1, q1, p2, q2):
     return False
 
 
-
 def check_if_intersect(square1, square2):
     """
         Check if two squares intersect
@@ -379,6 +386,7 @@ def check_if_intersect(square1, square2):
             return True
     return False
 
+
 def check_if_intersect2_simple(square1, square2):
     square1_x = [vertex[0] for vertex in square1]
     square1_y = [vertex[1] for vertex in square1]
@@ -396,6 +404,7 @@ def check_if_intersect2_simple(square1, square2):
 
     # If no axis misalignment is found, cubes intersect
     return True
+
 
 def check_if_intersect2(square1, square2):
     """
@@ -452,9 +461,9 @@ def check_if_intersect_segment_segment(point1, point2, point3, point4):
         return False
     # find the intersection point
     t = ((point1[0] - point3[0]) * (point3[1] - point4[1]) - (point1[1] - point3[1]) * (point3[0] - point4[0])) / (
-        (point1[0] - point2[0]) * (point3[1] - point4[1]) - (point1[1] - point2[1]) * (point3[0] - point4[0]))
+            (point1[0] - point2[0]) * (point3[1] - point4[1]) - (point1[1] - point2[1]) * (point3[0] - point4[0]))
     u = -((point1[0] - point2[0]) * (point1[1] - point3[1]) - (point1[1] - point2[1]) * (point1[0] - point3[0])) / (
-        (point1[0] - point2[0]) * (point3[1] - point4[1]) - (point1[1] - point2[1]) * (point3[0] - point4[0]))
+            (point1[0] - point2[0]) * (point3[1] - point4[1]) - (point1[1] - point2[1]) * (point3[0] - point4[0]))
     # check if the intersection point is on the segments
     if 0 <= t <= 1 and 0 <= u <= 1:
         return True
@@ -485,6 +494,7 @@ def check_intersection(data, square):
         if check_if_intersect2_simple(square, square2):
             return True
     return False
+
 
 def check_intersection_3d(data, cuboid):
     """

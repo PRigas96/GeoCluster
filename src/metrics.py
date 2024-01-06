@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from src import geometry as geo
 
+
 # define Linf() function for a square and a point
 def Linf(square, point):
     """
@@ -22,8 +23,8 @@ def Linf(square, point):
     square_new = square_new[:, 0] - point[0], square_new[:, 1] - point[1]
     square_new_ = square_new[:, 0] - point[0], square_new[:, 1] - point[1]
 
-    #square_new = np.array([np.subtract(square_point, point) for square_point in square])
-    #square_new_ = np.array([np.subtract(square_point, point) for square_point in square])
+    # square_new = np.array([np.subtract(square_point, point) for square_point in square])
+    # square_new_ = np.array([np.subtract(square_point, point) for square_point in square])
 
     # find if y = abs(x) intersects the square and if so add the point to the list so that the clockwise order is preserved
     # find the intersection point
@@ -33,17 +34,17 @@ def Linf(square, point):
     for i in range(square.shape[0]):
         # print("==================================")
         sq_pt1 = square_new[i]
-        sq_pt2 = square_new[(i+1) % square.shape[0]]
+        sq_pt2 = square_new[(i + 1) % square.shape[0]]
         # alpha
         if not (sq_pt2[0] - sq_pt1[0] == 0):
-            a = (sq_pt2[1] - sq_pt1[1])/(sq_pt2[0] - sq_pt1[0])
+            a = (sq_pt2[1] - sq_pt1[1]) / (sq_pt2[0] - sq_pt1[0])
         else:
             continue
         # beta
-        b = sq_pt1[1] - a*sq_pt1[0]
+        b = sq_pt1[1] - a * sq_pt1[0]
         # new point
         if not (a == 1 or a == -1):
-            new_pts = np.array([[-b/(a-1), -b/(a-1)], [-b/(a+1), b/(a+1)]])
+            new_pts = np.array([[-b / (a - 1), -b / (a - 1)], [-b / (a + 1), b / (a + 1)]])
         else:
             continue
         # check if new points lie inside the segment
@@ -51,13 +52,13 @@ def Linf(square, point):
         for new_pt in new_pts:
             if (new_pt[0] >= min(sq_pt1[0], sq_pt2[0])) and (new_pt[0] <= max(sq_pt1[0], sq_pt2[0])) and \
                     (new_pt[1] >= min(sq_pt1[1], sq_pt2[1])) and (new_pt[1] <= max(sq_pt1[1], sq_pt2[1])):
-                #print("new point is : ", new_pt)
-                square_new_ = np.insert(square_new_, i+1+cnt, new_pt, axis=0)
+                # print("new point is : ", new_pt)
+                square_new_ = np.insert(square_new_, i + 1 + cnt, new_pt, axis=0)
                 cnt += 1
     # get Linf from each point in square_new
     min_dist = np.inf
     for square_point in square_new_:
-        
+
         dist = np.max(np.abs(square_point))
         if dist < min_dist:
             min_dist = dist
@@ -86,7 +87,7 @@ def Linf_np(square, q_point):
 
 
 def Linfp(x, y):
-    return torch.max(torch.abs(x-y))
+    return torch.max(torch.abs(x - y))
 
 
 def Linf_array(q, c):
@@ -95,6 +96,7 @@ def Linf_array(q, c):
         for j in range(c.shape[0]):
             e[i, j] = Linfp(q[i], c[j])
     return e
+
 
 def Linf_3d(cuboid, point):
     cuboid = cuboid if not torch.is_tensor(cuboid) else cuboid.detach().numpy()
