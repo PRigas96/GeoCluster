@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from src.models import Teacher, Student
 from queue import Queue
-from src.utils.functions import getUncertaintyArea, getE, NearestNeighbour
+from src.utils.functions import getUncertaintyArea, NearestNeighbour
 from src.ebmUtils import loss_functional
 import math as m
 from pathlib import Path
@@ -50,7 +50,6 @@ class Ktree:
                  student_args,
                  device,
                  dim=2):
-        # self.boundary = boundary        #The given bounding box
         self.threshold = threshold  # Minimum number of data (objects) in a node.
         self.data = data  # The input data (objects).
         self.metric = metric
@@ -63,7 +62,6 @@ class Ktree:
         self.dim = dim
         self.device = device
         self.number_of_nodes = 1
-        # self.root.create_student()   # Extract the trained student model for the root node.
 
     def create_tree(self, save_path_prefix="", plot=False):
         queue = Queue()
@@ -366,7 +364,6 @@ class Ktree:
             encoder_depth = self.ktree.teacher_args["encoder_depth"]
             predictor_width = self.ktree.teacher_args["predictor_width"]
             predictor_depth = self.ktree.teacher_args["predictor_depth"]
-            latent_size = self.ktree.teacher_args["latent_size"]
             latent_size = len(self.data) // 2
             teacher = Teacher(n_of_centroids,
                               self.ktree.dim,
@@ -573,33 +570,19 @@ class Ktree:
             for cluster in range(self.student.n_centroids):
                 cluster_data = self.data[self.best_z == cluster]
                 # Create a child node with the corresponding data.
-                #         def __init__(self, data, index, ktree, parent,device):
                 self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster}", self.ktree, self, self.device))
 
         def query(self, query_point, k=1):
-            # if it doesnt work try this:
-            # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double(), query_point) for i in range(len(self.data))])
             query_point.to(self.device)
             query_point = torch.tensor(query_point) if not torch.is_tensor(query_point) else query_point
             # print("Query device is:", query_point.device)
             # print("Data device are: ")
             # print(torch.from_numpy(self.data[0]).double().to(self.device))
             # print("Data[0] device are: ", self.data[0].device)
-            # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
-            # dists = np.array([self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in range(len(self.data))])
             dists = torch.tensor(
                 [self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in
                  range(len(self.data))])
-            # dists should be tensor
-
-            # min_dist_index = dists.argmin() #returns the exact nearest neighbor
-
-            # _, min_dist_indices = torch.topk(dists, k, largest=False) #we want to return the k nearest for now
-            # min_dist_indices = min_dist_indices.sort().indices
             k_smallest_indices = np.argsort(dists)[:k]
-
-            # return self.data[min_dist_index]
-
             k_nearest = [self.data[i] for i in k_smallest_indices]
 
             return k_nearest

@@ -243,7 +243,6 @@ class Teacher(nn.Module):
             # print("y_pred device is: ", y_pred.device)
             # print("y device is: ", y.device)
             e = loss_functional(y_pred, y, metric)
-            # e.requires_grad = True
 
             F, z = e.min(1)  # get energy and latent
             div = torch.mean(F).item()  # get average energy
@@ -258,7 +257,6 @@ class Teacher(nn.Module):
             # if 1 centroid is near another i wanna penaliize it
             cost = torch.mean(abs(F)) + alpha * reg_proj + beta * reg_latent  # add regularizers
 
-            # cost = torch.mean(F) + 10*alpha*len(y) * reg_proj + beta * reg_latent  # add regularizers
             # i wanna penalize small F_r, the smaller the more penalized
 
             fr = torch.zeros(1)
@@ -269,7 +267,6 @@ class Teacher(nn.Module):
             f_rep = gamma * 0.5 * torch.sum(fr) * dim
             cost += f_rep
 
-            # cost -= len(y)/10 * 0.5*torch.sum(F_r)
             cost_array.append(cost.item())  # save cost
 
             # backward
@@ -398,8 +395,6 @@ class Student(nn.Module):
         """
         print("=" * 20)
         print("Training Student Model")
-        F_l = []
-        z_l = []
         cost_l = []
         cost_ll = []
         qp = qp if torch.is_tensor(qp) else torch.tensor(qp)
@@ -407,7 +402,6 @@ class Student(nn.Module):
 
         ce = nn.CrossEntropyLoss()
         acc_l = []
-        l_ce = []
         es = []
         best_vor_cost = torch.inf
         best_vor_model_state = None
@@ -417,17 +411,10 @@ class Student(nn.Module):
             # get outputs
             outputs = self(qp)
             # pass outputs through a hard arg max
-            F, z = outputs.min(1)
             F_ps_m, z_ps_m = F_ps.min(1)
             # send to device
-            F_ps_m = F_ps_m.to(device)
             z_ps_m = z_ps_m.to(device)
-            # make values of z_ps_m to be round to nearest integer
-            r_z = torch.round(z_ps_m)
             # get loss
-            alpha = 100
-            beta = 1000
-            z = z.float()
             z_ = outputs
             # make z_ float
             z_ = z_.float()

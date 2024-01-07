@@ -105,8 +105,6 @@ def Linf_3d(cuboid, point):
     dx = [0.0, 0.0]
     dy = [0.0, 0.0]
     dz = [0.0, 0.0]
-    distance = 0.0
-    min_dx, min_dy, min_dz = 0.0, 0.0, 0.0
 
     cuboid_vertices = geo.create_cuboid(cuboid)
 
@@ -149,7 +147,6 @@ def Linf_simple(square, q_point):
 
         Returns:
             min_dist (float): minimum distance between the point and the square, 0 if inside
-
     """
     dev = square.device
     square = geo.create_square2(square).to(dev)

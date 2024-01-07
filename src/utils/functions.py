@@ -1,7 +1,6 @@
 import torch
 import numpy as np
 
-from src.ebmUtils import loss_functional
 from src.metrics import Linf_array
 
 """
@@ -73,7 +72,6 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
     m = 0
     i = 0
     flag = 1
-    tmp = False
     print('Processing...')
     flag_temp = False
     while m <= M and i < N ** dim:
@@ -87,7 +85,6 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
             if diff[j] <= eps and F1 != E1[j]:
                 cnt += 1
         if cnt == 1:
-            # eps = eps * (1*F1/300 + 200/300) # new eps
             eps = eps * (1 / (F1 * 0.0001 * (10 * dim)))
             # only 2 centroids are close => 1/F1
             tmp = False
@@ -102,10 +99,7 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
                 flag_temp = True
 
         elif cnt > 1:
-            # eps = eps * 1/(0.01*F1) # new eps
-            # eps = eps * (F1/300) * cnt
             eps = eps * 2
-            # eps = eps * 2
             tmp = False
             for j in range(E1.shape[0]):
                 if diff[j] <= eps and F1 != E1[j]:
@@ -131,46 +125,6 @@ def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
     return m_points
 
 
-def getE(model, best_outputs, qp, sq, metric):
-    """
-        Get the Linf distance between the outputs and the qp points
-
-        Parameters:
-            model: the teacher network
-            best_outputs: the outputs of the teacher network
-            qp: the points to compare the outputs to
-            sq: the sq points
-            metric: the metric function to use for loss function
-
-        Returns:
-            F: the Linf distance between the outputs and the qp points
-            z: the index of the qp point that is closest to the output
-            F_sq: the Linf distance between the outputs and the sq points
-            z_sq: the index of the sq point that is closest to the output
-    """
-    dev = best_outputs.device
-    # get qp
-    qp = qp if torch.is_tensor(qp) else torch.tensor(qp)
-    sq = sq if torch.is_tensor(sq) else torch.tensor(sq)
-    qp = qp.to(dev)
-    sq = sq.to(dev)
-    # get outputs
-    outputs = best_outputs
-    outputs = outputs if torch.is_tensor(outputs) else torch.tensor(outputs)
-    # make Linf between outputs points and qp (between them all)
-    E = torch.zeros(outputs.shape[0], qp.shape[0])
-    for i in range(outputs.shape[0]):
-        for j in range(qp.shape[0]):
-            E[i, j] = torch.max(torch.abs(outputs[i] - qp[j]))
-    F, z = E.min(0)
-    # now do the same for sq
-    # outputs = outputs.detach().numpy()
-    E_sq = loss_functional(outputs, sq, metric)
-    F_sq, z_sq = E_sq.min(1)
-
-    return F, z, F_sq, z_sq
-
-
 def NearestNeighbour(qp, sq, metric):
     """
         Find the nearest neighbour of qp in sq
@@ -194,26 +148,3 @@ def NearestNeighbour(qp, sq, metric):
             d_nn = d_nn_sq
             z_nn = i
     return d_nn, z_nn
-
-
-def Accuracy(F, z, F_sq, z_sq, qp, sq):
-    """
-        Get the accuracy of the model
-
-        Parameters:
-            F: the Linf distance between the outputs and the qp points
-            z: the index of the qp point that is closest to the output
-            F_sq: the Linf distance between the outputs and the sq points
-            z_sq: the index of the sq point that is closest to the output
-            qp: the points to compare the outputs to
-            sq: the points to compare the outputs to
-
-        Returns:
-            acc: the accuracy of the model
-    """
-    acc = 0
-    for i in range(qp.shape[0]):
-        d_nn, z_nn = NearestNeighbour(qp[i], sq)
-        if z_sq[z_nn] == z[i]:
-            acc += 1
-    return acc / qp.shape[0]
