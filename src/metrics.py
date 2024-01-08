@@ -1,7 +1,7 @@
 # save here metric for tests
 import numpy as np
 import torch
-from src import geometry as geo
+from src.utils.objects import squares, cuboids, ellipses
 
 
 # define Linf() function for a square and a point
@@ -16,7 +16,7 @@ def Linf(square, point):
         Returns:
             min_dist (float): minimum distance between the point and the square
     """
-    square = geo.create_square2(square)
+    square = squares.create_square2(square)
     # 1st put coords around point and transform
     # in order to do the transform substract the point from each coord
     # normalize square to be around the point
@@ -106,7 +106,7 @@ def Linf_3d(cuboid, point):
     dy = [0.0, 0.0]
     dz = [0.0, 0.0]
 
-    cuboid_vertices = geo.create_cuboid(cuboid)
+    cuboid_vertices = cuboids.create_cuboid(cuboid)
 
     min_coords = np.min(cuboid_vertices, axis=0)
     max_coords = np.max(cuboid_vertices, axis=0)
@@ -149,8 +149,8 @@ def Linf_simple(square, q_point):
             min_dist (float): minimum distance between the point and the square, 0 if inside
     """
     dev = square.device
-    square = geo.create_square2(square).to(dev)
-    is_inside = geo.IsPointInsidePoly(q_point, square)
+    square = squares.create_square2(square).to(dev)
+    is_inside = squares.IsPointInsidePoly(q_point, square)
 
     if is_inside:
         return 0.0
@@ -162,3 +162,43 @@ def Linf_simple(square, q_point):
         if dist < min_dist:
             min_dist = dist
     return min_dist
+
+
+def distance_ellipse_2_point(ellipse, point):
+    ellipse = ellipse if not torch.is_tensor(ellipse) else ellipse.detach().numpy()
+    point = point if not torch.is_tensor(point) else point.detach().numpy()
+    a = ellipse[0]
+    b = ellipse[1]
+    ellipse_center_x = ellipse[2]
+    ellipse_center_y = ellipse[3]
+    p_x = point[0] - ellipse_center_x
+    p_y = point[1] - ellipse_center_y
+    a2 = pow(a, 2)
+    b2 = pow(b, 2)
+    k = a2 - b2
+    coeffs = [0, 0, 0, 0, 0]
+    coeffs[4] = - pow(a, 6) * pow(p_x, 2)
+    coeffs[3] = 2 * pow(a, 4) * p_x * k
+    coeffs[2] = (pow(a, 4) * pow(p_x, 2) + pow(a, 2) * pow(b, 2) * pow(p_y, 2)
+                 - pow(a, 2) * pow(k, 2))
+    coeffs[1] = -2 * pow(a, 2) * p_x * k
+    coeffs[0] = pow(k, 2)
+    # print(coeffs)
+    roots = np.roots(coeffs)
+    # print(roots)
+    xs = roots[np.isreal(roots)].real
+    ys = [(pow(b, 2) * p_y * xs[0]) / (-k * xs[0] + pow(a, 2) * p_x),
+          (pow(b, 2) * p_y * xs[1]) / (-k * xs[1] + pow(a, 2) * p_x)]
+    # print(x1, y1)
+    # print(x2, y2)
+    # plt.plot(xs[0] + ellipse_center_x, ys[0] + ellipse_center_y, marker="o", markersize=5, markeredgecolor="green", markerfacecolor="green")
+    # plt.plot(xs[1] + ellipse_center_x, ys[1] + ellipse_center_y, marker="o", markersize=5, markeredgecolor="green", markerfacecolor="green")
+    # plt.plot(xs[0], ys[0], marker="o", markersize=5, markeredgecolor="green",
+    #          markerfacecolor="green")
+    # plt.plot(xs[1], ys[1], marker="o", markersize=5, markeredgecolor="green",
+    #          markerfacecolor="green")
+    # plt.plot(point[0], point[1], marker="o", markersize=5, markeredgecolor="red", markerfacecolor="red")
+    # plt.plot(p_x, p_y, marker="o", markersize=5, markeredgecolor="blue", markerfacecolor="blue")
+    # print(xs, ys, ellipse_center_x, ellipse_center_y, p_x, p_y)
+    return min(ellipses.distance_between_points([xs[0], ys[0]], [p_x, p_y]),
+               ellipses.distance_between_points([xs[1], ys[1]], [p_x, p_y]))

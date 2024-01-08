@@ -15,46 +15,6 @@ def distance_between_points(p1: [int], p2: [int]):
     return math.sqrt(pow(p2[0] - p1[0], 2) + pow(p2[1] - p1[1], 2))
 
 
-def distance_ellipse_2_point(ellipse, point):
-    ellipse = ellipse if not torch.is_tensor(ellipse) else ellipse.detach().numpy()
-    point = point if not torch.is_tensor(point) else point.detach().numpy()
-    a = ellipse[0]
-    b = ellipse[1]
-    ellipse_center_x = ellipse[2]
-    ellipse_center_y = ellipse[3]
-    p_x = point[0] - ellipse_center_x
-    p_y = point[1] - ellipse_center_y
-    a2 = pow(a, 2)
-    b2 = pow(b, 2)
-    k = a2 - b2
-    coeffs = [0, 0, 0, 0, 0]
-    coeffs[4] = - pow(a, 6) * pow(p_x, 2)
-    coeffs[3] = 2 * pow(a, 4) * p_x * k
-    coeffs[2] = (pow(a, 4) * pow(p_x, 2) + pow(a, 2) * pow(b, 2) * pow(p_y, 2)
-                 - pow(a, 2) * pow(k, 2))
-    coeffs[1] = -2 * pow(a, 2) * p_x * k
-    coeffs[0] = pow(k, 2)
-    # print(coeffs)
-    roots = np.roots(coeffs)
-    # print(roots)
-    xs = roots[np.isreal(roots)].real
-    ys = [(pow(b, 2) * p_y * xs[0]) / (-k * xs[0] + pow(a, 2) * p_x),
-          (pow(b, 2) * p_y * xs[1]) / (-k * xs[1] + pow(a, 2) * p_x)]
-    # print(x1, y1)
-    # print(x2, y2)
-    # plt.plot(xs[0] + ellipse_center_x, ys[0] + ellipse_center_y, marker="o", markersize=5, markeredgecolor="green", markerfacecolor="green")
-    # plt.plot(xs[1] + ellipse_center_x, ys[1] + ellipse_center_y, marker="o", markersize=5, markeredgecolor="green", markerfacecolor="green")
-    # plt.plot(xs[0], ys[0], marker="o", markersize=5, markeredgecolor="green",
-    #          markerfacecolor="green")
-    # plt.plot(xs[1], ys[1], marker="o", markersize=5, markeredgecolor="green",
-    #          markerfacecolor="green")
-    # plt.plot(point[0], point[1], marker="o", markersize=5, markeredgecolor="red", markerfacecolor="red")
-    # plt.plot(p_x, p_y, marker="o", markersize=5, markeredgecolor="blue", markerfacecolor="blue")
-    # print(xs, ys, ellipse_center_x, ellipse_center_y, p_x, p_y)
-    return min(distance_between_points([xs[0], ys[0]], [p_x, p_y]),
-               distance_between_points([xs[1], ys[1]], [p_x, p_y]))
-
-
 # An ellipse has an equation (x-h)^2/a^2 + (y-k)^2/b^2 = 1
 class Ellipse:
     def __init__(self, h: float, a: float, k: float, b: float):
@@ -191,17 +151,3 @@ def save_to_file(file_name: str, boxes: [Box]):
             box.ellipse.k
         ]))
     np.save(file_name, np.array(objs, dtype=object), allow_pickle=True)
-
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    boxes = get_boxes(1, 0, 10, 0, 10, 1, 3, 1, 3)
-    # for box in boxes:
-    #     plot_square(box, 'blue')
-    b = np.load('./../data/ellipses/1000el_1_3.npy', allow_pickle=True)
-    print(distance_ellipse_2_point(boxes[0].ellipse.to_vector(), [7, 3]))
-    draw_ellipses(boxes)
-    # save_to_file("./test.npy", boxes)
-    # b = np.load('./test.npy', allow_pickle=True)
-    # print(b)
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
