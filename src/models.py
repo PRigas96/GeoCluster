@@ -3,7 +3,7 @@ import numpy as np
 from torch import nn
 from torch.nn.functional import one_hot
 from torch.distributions import Dirichlet
-from src.ebmUtils import Reg, RegLatent, loss_functional
+from src.utils.embeddings import Reg, RegLatent, loss_functional
 import matplotlib.pyplot as plt
 from copy import deepcopy
 import math as m

@@ -2,8 +2,8 @@ import torch
 import numpy as np
 from src.models import Teacher, Student
 from queue import Queue
-from src.utils.functions import getUncertaintyArea, NearestNeighbour
-from src.ebmUtils import loss_functional
+from src.utils.functions import NearestNeighbour
+from src.utils.embeddings import loss_functional, getUncertaintyArea
 import math as m
 from pathlib import Path
 import matplotlib.pyplot as plt
