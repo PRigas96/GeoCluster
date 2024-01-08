@@ -6,7 +6,7 @@ from src.utils.objects import squares
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from scipy.signal import butter, filtfilt
-from src.ebmUtils import loss_functional
+from src.utils.embeddings import loss_functional
 
 
 def plot_data(obj, size=10, limits=[0, 300, 0, 300]):
