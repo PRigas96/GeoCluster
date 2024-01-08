@@ -1,5 +1,34 @@
 import numpy as np
 import math
+import random
+
+
+def loadData(numberOfData, numberOfQueryPoints):
+    """
+        Load data from data folder
+
+        Parameters:
+            numberOfData (int): number of data to load
+
+        Returns:
+            data (np.array): data
+
+        Important:
+            The data must be in the following format:
+            [x0, y0, z0, w, h, d, theta, psi, phi] where:
+            x0, y0, z0: coordinates of the center of the cuboid
+            w, h, d: width, height and depth of the cuboid
+            theta, psi, phi: rotation angles of the cuboid in rad for every axis
+    """
+    print("Loading data...")
+    ref_data = './data_3d/10000cb/' + str(numberOfData) + 'cb_1_4.npy'
+    ref_query_points = './data/squares/' + str(numberOfQueryPoints) + '/' + str(numberOfQueryPoints)
+    data = np.load(ref_data)
+    data[:, -1] = np.deg2rad(data[:, -1])
+    datapoints = np.load(ref_query_points + 'qp.npy')
+    print("Data loaded.")
+
+    return data, datapoints
 
 
 def create_cuboid(cuboid):
@@ -204,3 +233,77 @@ def check_intersection_3d(data, cuboid):
         if check_if_intersect3_simple(cuboid, cuboid2):
             return True
     return False
+
+
+def create_data_3d(numberOfData, x0, width, height, depth, theta, psi, phi, cube=True, axis_aligned=True):
+    """
+        Create numberOfData data
+
+        Parameters:
+            numberOfData (int): number of data to load
+
+        Returns:
+            data (np.array): data
+
+        Important:
+            The data are in the following format:
+            [x0, y0, z0, w, h, d, theta, phi] where:
+            x0, y0: coordinates of the center of the cuboid
+            w, h, z: width, height and depth of the cuboid
+            theta: rotation angle of the square in rad
+            phi: second
+    """
+    data = []
+    point_cnt = 0
+    cnt = 1  # Keep track of cuboids created so far
+
+    # Maximum number of collisions allowed - If reached, the generation of cuboids stops
+    maximum_num_of_collisions = 0.05 * numberOfData
+    num_of_collisions = 0
+
+    while cnt != numberOfData + 1:
+        if (cnt >= len(x0)):
+            break
+        # Store the results for every 500 cuboids created, starting from 1.000 and ending to 10.000
+        if 10000 <= cnt <= 50000 and (cnt - 10000) % 5000 == 0:
+            print("reached ", cnt, " cuboids!")
+            np.save(f"./data_3d/10000cb/{cnt}cb_1_4.npy", data)
+
+        print("creating square ", cnt, "\n")
+        # Create the square with random center of mass
+        x = x0[point_cnt][0]
+        y = x0[point_cnt][1]
+        z = x0[point_cnt][2]
+        point_cnt += 1
+
+        # Check if the cuboid is actually a cube or not. Shape it accordingly
+        if (cube):
+            wid = hei = dep = random.choice(width)
+        else:
+            wid = random.choice(width)
+            hei = random.choice(height)
+            dep = random.choice(depth)
+
+        if (axis_aligned):
+            th = ps = ph = 0
+        else:
+            th = random.choice(theta)
+            ps = random.choice(psi)
+            ph = random.choice(phi)
+
+        current_cuboid = np.array([x, y, z, wid, hei, dep, th, ps, ph])
+        # Check if the current cuboid intersects with any of the cuboids in the data
+        if not check_intersection_3d(data, current_cuboid):
+            data.append(current_cuboid)
+            cnt += 1
+            num_of_collisions = 0
+        else:
+            num_of_collisions += 1
+            print("num of collisions is: ", num_of_collisions)
+            # Terminate if maximum number of collisions reached
+            if num_of_collisions == maximum_num_of_collisions:
+                print(
+                    "max number of collisions reached! dataset creation terminates!\n"
+                )
+                break
+    return data
