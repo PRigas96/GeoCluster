@@ -18,7 +18,7 @@ Key points of our method are:
 - Input Agnostic.
 - Simple, since only the metric needs to be defined.
 - Fast, since the student is a linear model, and is run on the GPU.
-- Great scaling and higly parallelizable
+- Great scaling and highly parallelizable
 
 ## Installation
 
