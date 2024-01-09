@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from src.models import Teacher, Student
+from src.models import Clustering, Critic
 from queue import Queue
 from src.utils.functions import NearestNeighbour
 from src.utils.embeddings import loss_functional, getUncertaintyArea
@@ -18,9 +18,9 @@ class Ktree:
             threshold (int): the minimum number of data (objects) in a node
             data (np.array): the input data (objects)
             metric (callable): the metric function to use to compute the distance between the data and given points
-            teacher_args (dict): the arguments for the teacher model
+            clustering_args (dict): the arguments for the clustering model
             un_args (dict): the arguments for the uncertainty area sampler
-            student_args (dict): the arguments for the student model
+            critic_args (dict): the arguments for the critic model
             divided (bool): True is the tree has been divided, False otherwise
             root (Node): The root node of the tree.
             dim (int): the dimensionality of the data
@@ -41,15 +41,15 @@ class Ktree:
             plot_leaf_clusters (n_samples): Plots the cluster spaces defined by the tree's leaf nodes.
             plot_leaf_clusters_voronoi (n_samples): Plots the voronoi diagram (by sampling) shared among the data
                 in the cluster spaces defined by the tree's leaf nodes.
-            get_student_accuracies (query_points): Calculates the prediction accuracy for each (non-leaf) node student.
+            get_critic_accuracies (query_points): Calculates the prediction accuracy for each (non-leaf) node critic.
     """
 
     def __init__(self, threshold,
                  data,
                  metric,
-                 teacher_args,
+                 clustering_args,
                  un_args,
-                 student_args,
+                 critic_args,
                  device,
                  dim=2):
         """
@@ -59,18 +59,18 @@ class Ktree:
                 threshold (int): the minimum number of data (objects) in a node
                 data (np.array): the input data (objects)
                 metric (callable): the metric function to use to compute the distance between the data and given points
-                teacher_args (dict): the arguments for the teacher model
+                clustering_args (dict): the arguments for the clustering model
                 un_args (dict): the arguments for the uncertainty area sampler
-                student_args (dict): the arguments for the student model
+                critic_args (dict): the arguments for the critic model
                 device (torch.device): the currently selected device for torch
                 dim (int): the dimensionality of the data
         """
         self.threshold = threshold  # Minimum number of data (objects) in a node.
         self.data = data  # The input data (objects).
         self.metric = metric
-        self.teacher_args = teacher_args
+        self.clustering_args = clustering_args
         self.un_args = un_args
-        self.student_args = student_args
+        self.critic_args = critic_args
         self.divided = False
         root_parent = None
         self.root = self.Node(self.data, "0", self, root_parent, device=device)
@@ -80,12 +80,12 @@ class Ktree:
 
     def create_tree(self, save_path_prefix="", plot=False):
         """
-            Creates the k-tree. Starting from root node it creates a student model and
+            Creates the k-tree. Starting from root node it creates a critic model and
                 iteratively repeats the process to its children until the stop criterion is reached
                 i.e. the data size is less than the defined threshold.
 
             See Also:
-                Node.create_student: Creates the student model.
+                Node.create_critic: Creates the critic model.
 
             Parameters:
                 save_path_prefix (str): if set, the trained models and training parameters
@@ -100,27 +100,27 @@ class Ktree:
             # If a save path is set, append the node index to it.
             save_path_index_prefix = "" if save_path_prefix == "" else save_path_prefix + node.index
 
-            # Create the student and divide the node if the data has size less than the defined threshold.
+            # Create the critic and divide the node if the data has size less than the defined threshold.
             if len(node.data) > self.threshold:
                 print()
                 print("=" * 20)
                 print(
-                    f"Creating student for node {node.index} that has {len(node.data)} data, which is more than the threshold {self.threshold}.")
-                node.create_student(save_path_index_prefix, plot)
-                if node.student is not None:
+                    f"Creating critic for node {node.index} that has {len(node.data)} data, which is more than the threshold {self.threshold}.")
+                node.create_critic(save_path_index_prefix, plot)
+                if node.critic is not None:
                     node.divide()
-                    self.number_of_nodes += node.student.n_centroids
-                    for i in range(node.student.n_centroids):
+                    self.number_of_nodes += node.critic.n_centroids
+                    for i in range(node.critic.n_centroids):
                         queue.put(node.children[i])
 
     def create_tree_from_config(self, path_prefix):
         """
             Creates the tree from a set of model configurations saved in files.
                 The model configurations must exist in the same directory and must be named
-                as 'path_prefix' + 'node.index' + '_student_config.pt'.
+                as 'path_prefix' + 'node.index' + '_critic_config.pt'.
 
             See Also:
-                Node.create_student_from_config: Creates a student model from a model config saved in a file.
+                Node.create_critic_from_config: Creates a critic model from a model config saved in a file.
 
             Parameters:
                 path_prefix (str): the path in which to look for the model config files
@@ -130,17 +130,17 @@ class Ktree:
 
         while not queue.empty():
             node = queue.get()
-            path = Path(path_prefix + node.index + "_student_config.pt")
+            path = Path(path_prefix + node.index + "_critic_config.pt")
 
-            # If there is no student config, the node is a leaf so do nothing.
+            # If there is no critic config, the node is a leaf so do nothing.
             if not path.is_file():
                 continue
 
-            node.create_student_from_config(str(path))
+            node.create_critic_from_config(str(path))
 
             # Calculate best_z indices in order to divide the node data afterward.
-            # See relevant comments in "Node.create_student" post teacher training.
-            centroids = np.load(path_prefix + node.index + "_teacher_training_results.npy",
+            # See relevant comments in "Node.create_critic" post clustering training.
+            centroids = np.load(path_prefix + node.index + "_clustering_training_results.npy",
                                 allow_pickle=True).item()["best_outputs"]
             e = loss_functional(centroids, torch.from_numpy(node.data).float().to(self.device), self.metric)
             _, node.best_z = e.min(1)
@@ -148,7 +148,7 @@ class Ktree:
 
             # Divide the node and add its children to the queue.
             node.divide()
-            self.number_of_nodes += node.student.n_centroids
+            self.number_of_nodes += node.critic.n_centroids
             for child in node.children:
                 queue.put(child)
 
@@ -206,7 +206,7 @@ class Ktree:
         node = self.root
 
         while not node.isLeaf():
-            pred = node.student(query_point)
+            pred = node.critic(query_point)
             z = pred.argmax()
             node = node.children[z]
             predictions_per_layer.append(node.query(query_point))
@@ -254,7 +254,7 @@ class Ktree:
             layer = self.root
             layers = []
             while not layer.isLeaf():
-                pred = layer.student(query_points)
+                pred = layer.critic(query_points)
                 _, z_ordered = pred.topk(k)  # Get the indices of prediction
                 # check if 2 predictions are inside ball
                 diff = pred - max(pred)
@@ -315,7 +315,7 @@ class Ktree:
         # the number of centroids k. Add "1" at the beginning to distinguish e.g. "01" from "001".
         samples_cluster_indices = [self.query_verbose(torch.from_numpy(sample).float())["cluster_index"]
                                    for sample in samples]
-        sample_clusters_ids = [int("1" + samples_cluster, self.teacher_args["number_of_centroids"])
+        sample_clusters_ids = [int("1" + samples_cluster, self.clustering_args["number_of_centroids"])
                                for samples_cluster in samples_cluster_indices]
         ax = plt.axes(projection='3d' if self.dim == 3 else None)
         ax.scatter(*tuple(samples[:, i] for i in range(samples.shape[1])), c=sample_clusters_ids)
@@ -349,14 +349,14 @@ class Ktree:
 
         # Get the cluster node index and convert it to an integer using as base the number of centroids k.
         # Add "1" at the beginning to distinguish e.g. "01" from "001".
-        sample_clusters_ids = [int("1" + samples_cluster, self.teacher_args["number_of_centroids"])
+        sample_clusters_ids = [int("1" + samples_cluster, self.clustering_args["number_of_centroids"])
                                for samples_cluster in samples_cluster_indices]
         ax = plt.axes(projection='3d' if self.dim == 3 else None)
         ax.scatter(*tuple(samples[:, i] for i in range(samples.shape[1])), c=sample_clusters_ids)
 
-    def get_student_accuracies(self, query_points):
+    def get_critic_accuracies(self, query_points):
         """
-            Calculates the prediction accuracy for each (non-leaf) node student.
+            Calculates the prediction accuracy for each (non-leaf) node critic.
 
             Parameters:
                 query_points (torch.Tensor): a list of point vectors (in the objects' dimension)
@@ -367,28 +367,28 @@ class Ktree:
         """
         queue = Queue()
         queue.put(self.root)
-        correct_predictions_per_student = {}
-        student_accuracies = {}
+        correct_predictions_per_critic = {}
+        critic_accuracies = {}
 
         while not queue.empty():
             node = queue.get()
             if not node.isLeaf():
                 for query_point in query_points:
-                    predicted_z = node.student(query_point)
+                    predicted_z = node.critic(query_point)
                     z = predicted_z.argmax()
                     predicted_nn = node.children[z].query(query_point)
                     exact_nn = node.query(query_point)
                     if np.array_equal(predicted_nn, exact_nn):
-                        if node.index not in correct_predictions_per_student:
-                            correct_predictions_per_student[node.index] = 0
+                        if node.index not in correct_predictions_per_critic:
+                            correct_predictions_per_critic[node.index] = 0
                         else:
-                            correct_predictions_per_student[node.index] += 1
-                student_accuracies[node.index] = correct_predictions_per_student[node.index] / len(query_points)
+                            correct_predictions_per_critic[node.index] += 1
+                critic_accuracies[node.index] = correct_predictions_per_critic[node.index] / len(query_points)
 
                 for child in node.children:
                     queue.put(child)
 
-        return student_accuracies
+        return critic_accuracies
 
     class Node:
         """
@@ -397,7 +397,7 @@ class Ktree:
             Attributes:
                 device (torch.device): the currently selected device for torch
                 data (np.array): the data (objects) belonging to this node
-                student (Student|None): the student model
+                critic (Critic|None): the critic model
                 children (list[Ktree.Node]): a list of the children Node objects
                 ktree (Ktree): the k-tree to which the node belongs
                 index (str): the index of the node, a string of integers describing the child path from root
@@ -410,15 +410,15 @@ class Ktree:
 
             Methods:
                 get_bounding_box (): Calculates and returns the bounding box of the data.
-                create_student (save_path_prefix="", plot=False): Creates the student model.
-                create_student_from_config (path): Creates the node student from file configuration.
+                create_critic (save_path_prefix="", plot=False): Creates the critic model.
+                create_critic_from_config (path): Creates the node critic from file configuration.
                 isLeaf (): Returns whether the node is a leaf or not.
                 divide (): Creates child nodes where every child stores the data that each centroid is closest (best_z).
                 query (query_point): Returns (by brute force) the k nearest neighbours of the query point.
-                get_leaf_sums (query_points): Recursive function to calculate the energy from the node's student
+                get_leaf_sums (query_points): Recursive function to calculate the energy from the node's critic
                     predictions of given query points and add it to each of its children's respective energy.
                 get_leaf_cumsums (query_points): Recursive function to calculate the cumulative energy from the node's
-                    student predictions of given query points and add it to each of its children's respective energy.
+                    critic predictions of given query points and add it to each of its children's respective energy.
         """
 
         def __init__(self, data, index, ktree, parent, device):
@@ -435,7 +435,7 @@ class Ktree:
             # self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # never
             self.device = device
             self.data = data
-            self.student = None
+            self.critic = None
             self.children = []
             self.ktree = ktree
             self.index = index
@@ -458,12 +458,12 @@ class Ktree:
             return [[m.floor(min(self.data[:, i] - size_sup)), m.ceil(max(self.data[:, i] + size_sup))]
                     for i in range(self.ktree.dim)]
 
-        def create_student(self, save_path_prefix="", plot=False):
+        def create_critic(self, save_path_prefix="", plot=False):
             """
-                Creates the student model. Main pipeline of the algorithm.
-                    First a teacher model is trained and predicts the best centroids to fit the data.
+                Creates the critic model. Main pipeline of the algorithm.
+                    First a clustering model is trained and predicts the best centroids to fit the data.
                     Then points are sampled from areas where the best centroid is uncertain.
-                    Finally, a student model is trained to predict a query point to its best centroid.
+                    Finally, a critic model is trained to predict a query point to its best centroid.
 
                 Parameters:
                     save_path_prefix (str): if set, the trained model and training parameters
@@ -479,78 +479,78 @@ class Ktree:
             print(f"Bounding box for node {self.index}: {bounding_box}")
 
             """
-            Teacher model.
+            Clustering model.
             """
 
-            # Create and train the teacher model.
-            n_of_centroids = self.ktree.teacher_args["number_of_centroids"]
-            print(f"Creating teacher for node {self.index} with {n_of_centroids} centroids.")
+            # Create and train the clustering model.
+            n_of_centroids = self.ktree.clustering_args["number_of_centroids"]
+            print(f"Creating clustering for node {self.index} with {n_of_centroids} centroids.")
             if n_of_centroids == 0:
                 n_of_centroids = 2 ** self.ktree.dim
 
-            encoder_activation = self.ktree.teacher_args["encoder_activation"]
-            encoder_depth = self.ktree.teacher_args["encoder_depth"]
-            predictor_width = self.ktree.teacher_args["predictor_width"]
-            predictor_depth = self.ktree.teacher_args["predictor_depth"]
+            encoder_activation = self.ktree.clustering_args["encoder_activation"]
+            encoder_depth = self.ktree.clustering_args["encoder_depth"]
+            predictor_width = self.ktree.clustering_args["predictor_width"]
+            predictor_depth = self.ktree.clustering_args["predictor_depth"]
             latent_size = len(self.data) // 2
-            teacher = Teacher(n_of_centroids,
-                              self.ktree.dim,
-                              encoder_activation,
-                              encoder_depth,
-                              predictor_width,
-                              predictor_depth,
-                              latent_size,
-                              self.index,
-                              self.parent,
-                              self.ktree.dim).to(self.device)
+            clustering = Clustering(n_of_centroids,
+                                    self.ktree.dim,
+                                    encoder_activation,
+                                    encoder_depth,
+                                    predictor_width,
+                                    predictor_depth,
+                                    latent_size,
+                                    self.index,
+                                    self.parent,
+                                    self.ktree.dim).to(self.device)
             # Populate the optimizer with the model parameters and the learning rate.
-            teacher_args = self.ktree.teacher_args.copy()
-            teacher_args["optimizer"] = torch.optim.Adam(teacher.parameters(), lr=teacher_args["optimizer_lr"])
-            del teacher_args["optimizer_lr"]
-            # Train the teacher model and assign the best state found during training.
-            teacher.train_(train_data=torch.from_numpy(self.data).float().to(self.device),
-                           metric=self.ktree.metric, bounding_box=bounding_box, **teacher_args)
-            teacher.load_state_dict(teacher.best_model_state)
+            clustering_args = self.ktree.clustering_args.copy()
+            clustering_args["optimizer"] = torch.optim.Adam(clustering.parameters(), lr=clustering_args["optimizer_lr"])
+            del clustering_args["optimizer_lr"]
+            # Train the clustering model and assign the best state found during training.
+            clustering.train_(train_data=torch.from_numpy(self.data).float().to(self.device),
+                              metric=self.ktree.metric, bounding_box=bounding_box, **clustering_args)
+            clustering.load_state_dict(clustering.best_model_state)
 
             # Save the model and some training results.
             if save_path_prefix != "":
                 # Save best model state to .pt format.
-                torch.save(teacher.best_model_state, f"{save_path_prefix}_teacher_config.pt")
-                print(f"Saved teacher config to {save_path_prefix}_teacher_config.pt")
+                torch.save(clustering.best_model_state, f"{save_path_prefix}_clustering_config.pt")
+                print(f"Saved clustering config to {save_path_prefix}_clustering_config.pt")
 
                 # Save training results to .npy format.
-                teacher_results = {
-                    "best_model_state": teacher.best_model_state,
-                    "best_outputs": teacher.best_outputs,
-                    "best_z": teacher.best_z,
-                    "best_lat": teacher.best_lat,
-                    "best_epoch": teacher.best_epoch,
-                    "p_p": teacher.p_p,
-                    "p_c": teacher.p_c,
-                    "reg_proj_array": teacher.reg_proj_array,
-                    "reg_latent_array": teacher.reg_latent_array,
-                    "memory": teacher.memory,
-                    "cost_array": teacher.cost_array
+                clustering_results = {
+                    "best_model_state": clustering.best_model_state,
+                    "best_outputs": clustering.best_outputs,
+                    "best_z": clustering.best_z,
+                    "best_lat": clustering.best_lat,
+                    "best_epoch": clustering.best_epoch,
+                    "p_p": clustering.p_p,
+                    "p_c": clustering.p_c,
+                    "reg_proj_array": clustering.reg_proj_array,
+                    "reg_latent_array": clustering.reg_latent_array,
+                    "memory": clustering.memory,
+                    "cost_array": clustering.cost_array
                 }
-                np.save(f"{save_path_prefix}_teacher_training_results.npy", teacher_results)
-                print(f"Saved teacher training results to {save_path_prefix}_teacher_training_results.npy")
+                np.save(f"{save_path_prefix}_clustering_training_results.npy", clustering_results)
+                print(f"Saved clustering training results to {save_path_prefix}_clustering_training_results.npy")
 
             # Plot training results.
             if plot:
                 # Plot the Amplitude demodulation of the signal (costs array).
-                signal = teacher.cost_array
+                signal = clustering.cost_array
                 upper_signal, lower_signal, filtered_signal = pt.AM_dem(signal, fc=0.4 * len(signal),
                                                                         fs=2 * len(signal))
-                pt.plot_AM_dem(upper_signal, lower_signal, filtered_signal, signal, teacher.best_epoch)
+                pt.plot_AM_dem(upper_signal, lower_signal, filtered_signal, signal, clustering.best_epoch)
                 # Plot the best model with the best outputs.
-                manifold = pt.createManifold(teacher, teacher.best_outputs.cpu(), self.ktree.metric,
+                manifold = pt.createManifold(clustering, clustering.best_outputs.cpu(), self.ktree.metric,
                                              x_lim=bounding_box[0], y_lim=bounding_box[1])
                 manifold = manifold.cpu().detach().numpy()
-                pt.plotManifold(self.data, manifold, teacher.best_outputs.cpu(), bounding_box[0], bounding_box[1])
+                pt.plotManifold(self.data, manifold, clustering.best_outputs.cpu(), bounding_box[0], bounding_box[1])
                 plt.show()
 
-            # Recalculate best_z indices since teacher.best_z is fuzzy from training.
-            e = loss_functional(teacher.best_outputs, torch.from_numpy(self.data).float().to(self.device),
+            # Recalculate best_z indices since clustering.best_z is fuzzy from training.
+            e = loss_functional(clustering.best_outputs, torch.from_numpy(self.data).float().to(self.device),
                                 self.ktree.metric)
             _, self.best_z = e.min(1)
             # Keep only the centroids that appear in the data predictions.
@@ -558,12 +558,12 @@ class Ktree:
             # e.g. convert (1, 0, 3) to (1, 0, 2); since centroid 2 is missing we count index 3 as 2.
             # Do so using the inverse indexing tensor of torch.unique().
             best_z_unique, self.best_z = torch.unique(self.best_z, return_inverse=True)
-            centroids = teacher.best_outputs[best_z_unique]
+            centroids = clustering.best_outputs[best_z_unique]
             n_of_centroids = len(centroids)
             # Finally store the regularised projection from the best epoch.
-            self.best_reg = teacher.reg_proj_array[teacher.best_epoch]
+            self.best_reg = clustering.reg_proj_array[clustering.best_epoch]
 
-            # If the division is fully unbalanced, i.e. all data is put into one child, no need for a student.
+            # If the division is fully unbalanced, i.e. all data is put into one child, no need for a critic.
             if n_of_centroids == 1:
                 return
 
@@ -620,78 +620,78 @@ class Ktree:
                 new_labels = F_ps.min(1)[1].cpu().detach().numpy()
                 ax.scatter(plt_qp[:, 0], plt_qp[:, 1], c=new_labels, s=50)
                 # plot best_outputs
-                plt_bo = teacher.best_outputs.cpu().detach().numpy()
+                plt_bo = clustering.best_outputs.cpu().detach().numpy()
                 c = np.linspace(0, plt_bo.shape[0], plt_bo.shape[0])
                 ax.scatter(plt_bo[:, 0], plt_bo[:, 1], c=c, s=200)
                 pt.plot_data_on_manifold(fig, ax, self.data, size=10, limits=bounding_box[0] + bounding_box[1])
                 plt.show()
 
             """
-            Student model.
+            Critic model.
             """
-            # Create and train the student model and assign the best state found during training.
+            # Create and train the critic model and assign the best state found during training.
 
-            student_args = self.ktree.student_args
-            width = student_args["width"]
-            depth = student_args["depth"]
-            print(f"Creating student for node {self.index} with {n_of_centroids} centroids.")
+            critic_args = self.ktree.critic_args
+            width = critic_args["width"]
+            depth = critic_args["depth"]
+            print(f"Creating critic for node {self.index} with {n_of_centroids} centroids.")
             print("Device is:", self.device)
-            student = Student(n_of_centroids, self.ktree.dim, self.ktree.dim, width, depth).to(
+            critic = Critic(n_of_centroids, self.ktree.dim, self.ktree.dim, width, depth).to(
                 self.device)  # initialize the voronoi network
-            student.train_(optimizer=torch.optim.Adam(student.parameters(), lr=student_args["optimizer_lr"]),
-                           epochs=student_args["epochs"],
-                           device=self.device,
-                           qp=qp,
-                           F_ps=F_ps
-                           )
-            student.eval()
-            student.load_state_dict(student.best_vor_model_state)
+            critic.train_(optimizer=torch.optim.Adam(critic.parameters(), lr=critic_args["optimizer_lr"]),
+                          epochs=critic_args["epochs"],
+                          device=self.device,
+                          qp=qp,
+                          F_ps=F_ps
+                          )
+            critic.eval()
+            critic.load_state_dict(critic.best_vor_model_state)
 
             # Save the model and some training results.
             if save_path_prefix != "":
                 # Save voronoi model.
-                torch.save(student.best_vor_model_state, f"{save_path_prefix}_student_config.pt")
-                print(f"Saved student config to {save_path_prefix}_student_config.pt")
+                torch.save(critic.best_vor_model_state, f"{save_path_prefix}_critic_config.pt")
+                print(f"Saved critic config to {save_path_prefix}_critic_config.pt")
 
                 # Save training results to .npy format.
-                student_results = {
-                    "best_vor_model_state": student.best_vor_model_state,
-                    "cost_ll": student.cost_ll,
-                    "acc_l": student.acc_l,
-                    "es": student.es
+                critic_results = {
+                    "best_vor_model_state": critic.best_vor_model_state,
+                    "cost_ll": critic.cost_ll,
+                    "acc_l": critic.acc_l,
+                    "es": critic.es
                 }
-                np.save(f"{save_path_prefix}_student_training_results.npy", student_results)
-                print(f"Saved teacher training results to {save_path_prefix}_student_training_results.npy")
+                np.save(f"{save_path_prefix}_critic_training_results.npy", critic_results)
+                print(f"Saved clustering training results to {save_path_prefix}_critic_training_results.npy")
 
-            # Plot the student training results.
+            # Plot the critic training results.
             if plot:
-                student.plot_accuracy_and_loss(student_args["epochs"])
+                critic.plot_accuracy_and_loss(critic_args["epochs"])
                 plt.show()
 
-            # Store the trained student.
-            self.student = student
+            # Store the trained critic.
+            self.critic = critic
 
-        def create_student_from_config(self, path):
+        def create_critic_from_config(self, path):
             """
-                Creates the node student from file configuration.
+                Creates the node critic from file configuration.
 
                 Parameters:
                     path (str): the path in which to look for the model config file
             """
-            width = self.ktree.student_args["width"]
-            depth = self.ktree.student_args["depth"]
+            width = self.ktree.critic_args["width"]
+            depth = self.ktree.critic_args["depth"]
 
             # Get the model parameters from the state dict.
             state_dict = torch.load(path)
             # Last predictor layer has bias shape (n_centroids,).
             n_centroids = state_dict[f"predictor.{2 * depth - 2}.bias"].shape[0]
 
-            # Build the student object and assign it to the node.
-            student = Student(n_centroids, self.ktree.dim, self.ktree.dim, width, depth).to(
+            # Build the critic object and assign it to the node.
+            critic = Critic(n_centroids, self.ktree.dim, self.ktree.dim, width, depth).to(
                 self.device)  # initialize the voronoi network
-            student.load_state_dict(torch.load(path))
-            student.eval()
-            self.student = student
+            critic.load_state_dict(torch.load(path))
+            critic.eval()
+            self.critic = critic
 
         def isLeaf(self):
             """
@@ -704,7 +704,7 @@ class Ktree:
 
         def divide(self):
             """Creates child nodes where every child stores the data that each centroid is closest (best_z)."""
-            for cluster in range(self.student.n_centroids):
+            for cluster in range(self.critic.n_centroids):
                 cluster_data = self.data[self.best_z == cluster]
                 # Create a child node with the corresponding data.
                 self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster}", self.ktree, self, self.device))
@@ -736,7 +736,7 @@ class Ktree:
 
         def get_leaf_sums(self, query_points):
             """
-                Recursive function to calculate the energy from the node's student predictions
+                Recursive function to calculate the energy from the node's critic predictions
                     of given query points and add it to each of its children's respective energy.
 
                 Parameters:
@@ -750,8 +750,8 @@ class Ktree:
             if self.isLeaf():
                 return torch.zeros((len(query_points), 1))
 
-            # The student predictions are the children energies.
-            y_pred_children = self.student(query_points)
+            # The critic predictions are the children energies.
+            y_pred_children = self.critic(query_points)
             # Each y_pred_children column corresponds to the energies of a child node, so add that column
             # to each child's leaf sums, i.e. the tensor with their leaves' predictions.
             sums = [y_pred_children[:, i].reshape(-1, 1) + self.children[i].get_leaf_sums(query_points)
@@ -760,7 +760,7 @@ class Ktree:
 
         def get_leaf_cumsums(self, query_points, y_pred=None):
             """
-                Recursive function to calculate the cumulative energy from the node's student predictions
+                Recursive function to calculate the cumulative energy from the node's critic predictions
                     of given query points and add it to each of its children's respective energy.
 
                 Parameters:
@@ -782,8 +782,8 @@ class Ktree:
             y_pred.to(self.device)
 
             # The children energies for each query point is the sum of
-            # the node energies (y_pred) and the student predictions.
-            y_pred_children = y_pred + self.student(query_points)
+            # the node energies (y_pred) and the critic predictions.
+            y_pred_children = y_pred + self.critic(query_points)
             # Each
             cumsums = [y_pred_children[:, i].reshape(-1, 1) +
                        self.children[i].get_leaf_cumsums(query_points, y_pred_children[:, i])

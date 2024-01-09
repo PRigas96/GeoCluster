@@ -9,7 +9,7 @@ from copy import deepcopy
 import math as m
 
 
-class Teacher(nn.Module):
+class Clustering(nn.Module):
     """
         Latent Variable Generative Energy Based Model
 
@@ -47,7 +47,7 @@ class Teacher(nn.Module):
                  node_index="0",
                  parent_node=None,
                  dim=2):
-        super(Teacher, self).__init__()
+        super(Clustering, self).__init__()
         self.n_centroids = n_centroids
         self.output_dim = output_dim
         self.latent_size = latent_size
@@ -178,7 +178,7 @@ class Teacher(nn.Module):
                scale_flag=False,
                bound_for_saving=6000):
         """
-            Train the teacher model
+            Train the clustering model
 
             Parameters:
                 optimizer: optimizer to be used
@@ -193,7 +193,7 @@ class Teacher(nn.Module):
                 bounding_box (list[list]): list of [min, max] limits for each coordinate
         """
         print("=" * 20)
-        print("Training Teacher Model")
+        print("Training Clustering Model")
         p_times = epochs // times  # print times
         y_prep = train_data
         num = 0
@@ -317,11 +317,7 @@ class Teacher(nn.Module):
         self.cost_array = cost_array
 
 
-# Backwards compatibility.
-LVGEBM = Teacher
-
-
-class Student(nn.Module):
+class Critic(nn.Module):
     """
         Voronoi Energy Based Model
         
@@ -338,7 +334,7 @@ class Student(nn.Module):
     """
 
     def __init__(self, n_centroids, input_dim, output_dim, width, depth):
-        super(Student, self).__init__()
+        super(Critic, self).__init__()
         self.n_centroids = n_centroids
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -384,7 +380,7 @@ class Student(nn.Module):
                times=10
                ):
         """
-            Train the student model
+            Train the critic model
 
             Parameters:
                 optimizer: optimizer to be used
@@ -394,7 +390,7 @@ class Student(nn.Module):
                 F_ps: ???
         """
         print("=" * 20)
-        print("Training Student Model")
+        print("Training Critic Model")
         cost_l = []
         cost_ll = []
         qp = qp if torch.is_tensor(qp) else torch.tensor(qp)
@@ -471,7 +467,3 @@ class Student(nn.Module):
         # add stars to the plot points
         ax1.scatter(self.es, self.acc_l, c='r', s=100, marker='*')
         ax2.scatter(self.es, cost_ll_log, c='royalblue', s=100, marker='*')
-
-
-# Backwards compatibility.
-Voronoi = Student

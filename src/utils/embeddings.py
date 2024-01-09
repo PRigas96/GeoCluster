@@ -42,7 +42,7 @@ def Reg(outputs, bounding_box, node_index, parent_node):
         reg_cost += Reg(outputs, bounding_box, node_index[:-1], parent_node.parent)
         reg_cost = 0.1 * layer * reg_cost
         child_label = torch.tensor([int(node_index[-1]) for _ in range(len(outputs))], dtype=torch.long)  # make tensor
-        reg_cost += alpha * ce(parent_node.student(outputs), child_label)
+        reg_cost += alpha * ce(parent_node.critic(outputs), child_label)
     return reg_cost
 
 
@@ -93,14 +93,14 @@ def loss_functional(y_hat, y_target, metric):
 
 
 # will sample points on the voronoi edges
-# we will label them and fine tune a student network
+# we will label them and fine tune a critic network
 # the sampler will be a module or a function?
 def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
     """
         Samples N points inside the data-area.
 
         Parameters:
-            outputs (torch.Tensor): the outputs of the teacher network
+            outputs (torch.Tensor): the outputs of the clustering network
             N (int): number of points to sample
             M (int): number of points to return
             epsilon (float): the epsilon ball
