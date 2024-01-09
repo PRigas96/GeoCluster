@@ -183,7 +183,7 @@ def createManifold(model
         
         Parameters:
             model: model to be used
-            y_pred (torch.Tensor): predicted outputs
+            y_pred (torch.Tensor): predicted centroids
             metric (callable): the metric to use for the loss function
             x_discr (int): x discretization
             y_discr (int): y discretization
@@ -200,9 +200,9 @@ def createManifold(model
     manifold = manifold.view(-1, 4)  # flatten
     points = manifold[:, :2]  # get points (x,y)
     points = torch.cat((points, torch.zeros((points.shape[0], 2))), dim=1)  # add zeros for z and w
-    outputs = y_pred
+    centroids = y_pred
     points = points
-    cost = loss_functional(outputs, points, metric)  # calculate cost
+    cost = loss_functional(centroids, points, metric)  # calculate cost
     F, z = cost.min(1)  # get energy and latent
     for i in range(manifold.shape[0]):
         manifold[i, -2] = F[i]
@@ -211,14 +211,14 @@ def createManifold(model
     return manifold
 
 
-def plotManifold(data, manifold, best_outputs, x_lim, y_lim, dim='2D'):
+def plotManifold(data, manifold, best_centroids, x_lim, y_lim, dim='2D'):
     """
         Plot the manifold
         
         Parameters:
             data: data to be plotted
             manifold: manifold to be plotted
-            best_outputs: best outputs
+            best_centroids: best centroids
             x_lim: x limits
             y_lim: y limits
             dim: dimension
@@ -234,7 +234,7 @@ def plotManifold(data, manifold, best_outputs, x_lim, y_lim, dim='2D'):
         ax = fig.add_subplot(111, projection='3d')
     level = 200
     ax.contourf(manifold[:, :, 0], manifold[:, :, 1], manifold[:, :, -2], level, cmap='viridis', alpha=0.9)
-    o = best_outputs.detach().numpy()
+    o = best_centroids.detach().numpy()
     no = o.shape[0]
     lb = np.linspace(0, no - 1, no)
     ax.scatter(o[:, 0], o[:, 1], c=lb, s=50)

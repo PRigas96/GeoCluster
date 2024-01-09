@@ -107,11 +107,11 @@ class Clustering(nn.Module):
 
         # Store training variables.
         self.best_model_state = None  # best model state
-        self.best_outputs = None  # best outputs
+        self.best_centroids = None  # best centroids
         self.best_z = None  # best latent
         self.best_lat = None  # best latent space
         self.best_epoch = None  # best epoch
-        self.p_p = None  # saved outputs
+        self.p_p = None  # saved centroids
         self.p_c = None  # saved costs
         self.reg_proj_array = None  # saved projection regularizers
         self.reg_latent_array = None  # saved latent regularizers
@@ -276,7 +276,7 @@ class Clustering(nn.Module):
             if cost < best_cost:
                 best_cost = cost
                 best_model_state = deepcopy(self.state_dict())
-                best_outputs = y_pred
+                best_centroids = y_pred
                 best_z = z
                 best_lat = self.z_l
                 best_epoch = epoch
@@ -285,7 +285,7 @@ class Clustering(nn.Module):
                 p_c.append(cost)
             if (epoch + 1) % p_times == 0:
                 print("=" * 20)
-                # print("Outputs: ", y_pred)
+                # print("Centroids: ", y_pred)
                 # print("torch.mean(F): ", torch.mean(F).item())
                 # print("reg_proj: ", alpha*reg_proj.item())
                 # print("reg_latent: ", beta * reg_latent.item())
@@ -305,7 +305,7 @@ class Clustering(nn.Module):
 
         # Store the training variables to the model.
         self.best_model_state = best_model_state
-        self.best_outputs = best_outputs
+        self.best_centroids = best_centroids
         self.best_z = best_z
         self.best_lat = best_lat
         self.best_epoch = best_epoch

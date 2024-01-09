@@ -141,7 +141,7 @@ class Ktree:
             # Calculate best_z indices in order to divide the node data afterward.
             # See relevant comments in "Node.create_critic" post clustering training.
             centroids = np.load(path_prefix + node.index + "_clustering_training_results.npy",
-                                allow_pickle=True).item()["best_outputs"]
+                                allow_pickle=True).item()["best_centroids"]
             e = loss_functional(centroids, torch.from_numpy(node.data).float().to(self.device), self.metric)
             _, node.best_z = e.min(1)
             best_z_unique, node.best_z = torch.unique(node.best_z, return_inverse=True)
@@ -521,7 +521,7 @@ class Ktree:
                 # Save training results to .npy format.
                 clustering_results = {
                     "best_model_state": clustering.best_model_state,
-                    "best_outputs": clustering.best_outputs,
+                    "best_centroids": clustering.best_centroids,
                     "best_z": clustering.best_z,
                     "best_lat": clustering.best_lat,
                     "best_epoch": clustering.best_epoch,
@@ -542,15 +542,15 @@ class Ktree:
                 upper_signal, lower_signal, filtered_signal = pt.AM_dem(signal, fc=0.4 * len(signal),
                                                                         fs=2 * len(signal))
                 pt.plot_AM_dem(upper_signal, lower_signal, filtered_signal, signal, clustering.best_epoch)
-                # Plot the best model with the best outputs.
-                manifold = pt.createManifold(clustering, clustering.best_outputs.cpu(), self.ktree.metric,
+                # Plot the best model with the best centroids.
+                manifold = pt.createManifold(clustering, clustering.best_centroids.cpu(), self.ktree.metric,
                                              x_lim=bounding_box[0], y_lim=bounding_box[1])
                 manifold = manifold.cpu().detach().numpy()
-                pt.plotManifold(self.data, manifold, clustering.best_outputs.cpu(), bounding_box[0], bounding_box[1])
+                pt.plotManifold(self.data, manifold, clustering.best_centroids.cpu(), bounding_box[0], bounding_box[1])
                 plt.show()
 
             # Recalculate best_z indices since clustering.best_z is fuzzy from training.
-            e = loss_functional(clustering.best_outputs, torch.from_numpy(self.data).float().to(self.device),
+            e = loss_functional(clustering.best_centroids, torch.from_numpy(self.data).float().to(self.device),
                                 self.ktree.metric)
             _, self.best_z = e.min(1)
             # Keep only the centroids that appear in the data predictions.
@@ -558,7 +558,7 @@ class Ktree:
             # e.g. convert (1, 0, 3) to (1, 0, 2); since centroid 2 is missing we count index 3 as 2.
             # Do so using the inverse indexing tensor of torch.unique().
             best_z_unique, self.best_z = torch.unique(self.best_z, return_inverse=True)
-            centroids = clustering.best_outputs[best_z_unique]
+            centroids = clustering.best_centroids[best_z_unique]
             n_of_centroids = len(centroids)
             # Finally store the regularised projection from the best epoch.
             self.best_reg = clustering.reg_proj_array[clustering.best_epoch]
@@ -571,7 +571,7 @@ class Ktree:
             Uncertainty Area.
             """
             # Calculate the Uncertainty Area.
-            m_points = getUncertaintyArea(outputs=centroids.cpu().detach().numpy(),
+            m_points = getUncertaintyArea(centroids=centroids.cpu().detach().numpy(),
                                           bounding_box=bounding_box, **self.ktree.un_args)
             m_points = np.array(m_points)
             self.un_points = m_points
@@ -619,10 +619,10 @@ class Ktree:
                 plt_qp = qp.cpu().detach().numpy()
                 new_labels = F_ps.min(1)[1].cpu().detach().numpy()
                 ax.scatter(plt_qp[:, 0], plt_qp[:, 1], c=new_labels, s=50)
-                # plot best_outputs
-                plt_bo = clustering.best_outputs.cpu().detach().numpy()
-                c = np.linspace(0, plt_bo.shape[0], plt_bo.shape[0])
-                ax.scatter(plt_bo[:, 0], plt_bo[:, 1], c=c, s=200)
+                # plot best_centroids
+                plt_bc = clustering.best_centroids.cpu().detach().numpy()
+                c = np.linspace(0, plt_bc.shape[0], plt_bc.shape[0])
+                ax.scatter(plt_bc[:, 0], plt_bc[:, 1], c=c, s=200)
                 pt.plot_data_on_manifold(fig, ax, self.data, size=10, limits=bounding_box[0] + bounding_box[1])
                 plt.show()
 
