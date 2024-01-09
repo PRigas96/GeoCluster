@@ -4,16 +4,17 @@ import numpy as np
 
 def NearestNeighbour(qp, sq, metric):
     """
-        Find the nearest neighbour of qp in sq
+        Finds the nearest neighbour of a query point in a list of data, using a given metric.
 
         Parameters:
-            qp: the query point
-            sq: the points to compare the query point to
-            metric: a metric function between a data object and a point
+            qp (torch.Tensor): the query point
+            sq (torch.Tensor): the points to compare the query point to
+            metric (callable): a metric function between a data object and a point
 
         Returns:
-            d_nn: the distance between the query point and its nearest neighbour, using the given metric
-            z_nn: the index of the nearest neighbour
+            (float, int):
+                - the distance between the query point and its nearest neighbour, using the given metric
+                - the index of the nearest neighbour
     """
     d_nn = np.inf
     z_nn = 0

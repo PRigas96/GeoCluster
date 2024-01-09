@@ -14,32 +14,34 @@ class Ktree:
     """
         Implements a k-tree class to use in Hierarchical Clustering
 
-        Parameters:
-            threshold (int): The minimum number of data (objects) in a node.
-            data (list): The input data (objects).
-            teacher_args (dict): The arguments for the teacher model.
-            un_args (dict): The arguments for the uncertainty area.
-            student_args (dict): The arguments for the student model.
-
         Attributes:
-            threshold (int): The minimum number of data (objects) in a node.
-            data (list): The input data (objects).
-            teacher_args (dict): The arguments for the teacher model.
-            un_args (dict): The arguments for the uncertainty area.
-            student_args (dict): The arguments for the student model.
-            divided (bool): Whether the tree has been divided or not.
+            threshold (int): the minimum number of data (objects) in a node
+            data (np.array): the input data (objects)
+            metric (callable): the metric function to use to compute the distance between the data and given points
+            teacher_args (dict): the arguments for the teacher model
+            un_args (dict): the arguments for the uncertainty area sampler
+            student_args (dict): the arguments for the student model
+            divided (bool): True is the tree has been divided, False otherwise
             root (Node): The root node of the tree.
-            
+            dim (int): the dimensionality of the data
+            device (torch.device): the currently selected device for torch
+            number_of_nodes (int): the number of nodes in the k-tree
+
         Methods:
             create_tree (save_path_prefix="", plot=False): Creates the tree.
-            query (query_point): Returns the nearest neighbour of the query point.
-            Node:
-                __init__ (data, index, ktree, parent): Initialises the node class.
-                create_student (save_path_prefix="", plot=False): Creates the student model.
-                isLeaf (): Returns whether the node is a leaf or not.
-                divide (): Divides the node.
-                query (query_point): Returns the nearest neighbour of the query point.
-                
+            create_tree_from_config (path_prefix): Creates the tree from a set of pre-saved models.
+            get_leaves: Returns a list of all the tree's leaf nodes (ordered "left to right").
+            query (query_point): Runs a query in the k-tree structure for a given point.
+            query_verbose (query_point): Runs a verbose query in the k-tree structure for a given point.
+            query_maxsum (query_points): Runs a query in the k-tree structure for a given list of points
+                using the max sum criterion.
+            query_knn_per_layer (query_points, k, eps): Gets the best k choices per layer, or eps.
+            query_maxcumsum (query_points): Runs a query in the k-tree structure for a given list of points
+                using the max cumulative sum criterion.
+            plot_leaf_clusters (n_samples): Plots the cluster spaces defined by the tree's leaf nodes.
+            plot_leaf_clusters_voronoi (n_samples): Plots the voronoi diagram (by sampling) shared among the data
+                in the cluster spaces defined by the tree's leaf nodes.
+            get_student_accuracies (query_points): Calculates the prediction accuracy for each (non-leaf) node student.
     """
 
     def __init__(self, threshold,
@@ -50,6 +52,19 @@ class Ktree:
                  student_args,
                  device,
                  dim=2):
+        """
+            Initialises a Ktree object.
+    
+            Parameters:
+                threshold (int): the minimum number of data (objects) in a node
+                data (np.array): the input data (objects)
+                metric (callable): the metric function to use to compute the distance between the data and given points
+                teacher_args (dict): the arguments for the teacher model
+                un_args (dict): the arguments for the uncertainty area sampler
+                student_args (dict): the arguments for the student model
+                device (torch.device): the currently selected device for torch
+                dim (int): the dimensionality of the data
+        """
         self.threshold = threshold  # Minimum number of data (objects) in a node.
         self.data = data  # The input data (objects).
         self.metric = metric
@@ -64,6 +79,19 @@ class Ktree:
         self.number_of_nodes = 1
 
     def create_tree(self, save_path_prefix="", plot=False):
+        """
+            Creates the k-tree. Starting from root node it creates a student model and
+                iteratively repeats the process to its children until the stop criterion is reached
+                i.e. the data size is less than the defined threshold.
+
+            See Also:
+                Node.create_student: Creates the student model.
+
+            Parameters:
+                save_path_prefix (str): if set, the trained models and training parameters
+                    will be saved in the path specified here, appended by each node's index
+                plot (bool): if set, plots about the trained models will be shown on runtime
+        """
         queue = Queue()
         queue.put(self.root)
 
@@ -86,6 +114,17 @@ class Ktree:
                         queue.put(node.children[i])
 
     def create_tree_from_config(self, path_prefix):
+        """
+            Creates the tree from a set of model configurations saved in files.
+                The model configurations must exist in the same directory and must be named
+                as 'path_prefix' + 'node.index' + '_student_config.pt'.
+
+            See Also:
+                Node.create_student_from_config: Creates a student model from a model config saved in a file.
+
+            Parameters:
+                path_prefix (str): the path in which to look for the model config files
+        """
         queue = Queue()
         queue.put(self.root)
 
@@ -114,10 +153,11 @@ class Ktree:
                 queue.put(child)
 
     def get_leaves(self, node=None):
-        """Returns a list of all the tree's leaf nodes (ordered "left to right").
+        """
+            Returns a list of all the tree's leaf nodes (ordered "left to right").
 
-        Returns:
-            list[Node]: A list of all the leaf nodes, ordered "left to right".
+            Returns:
+                list[Node]: A list of all the leaf nodes, ordered "left to right".
         """
         node = node if node is not None else self.root
 
@@ -131,25 +171,30 @@ class Ktree:
         return leaves
 
     def query(self, query_point):
-        """A query in the k-tree structure for a given point.
+        """
+            Runs a query in the k-tree structure for a given point.
 
-        Args:
-            query_point (torch.tensor): A point vector (in the objects' dimension).
-        Returns:
-            object: The nearest neighbor data object with respect to the query point.
+            Parameters:
+                query_point (torch.Tensor): a point vector (in the objects' dimension)
+
+            Returns:
+                object: the nearest neighbor data object with respect to the query point
         """
         return self.query_verbose(query_point)["nn"]
 
     def query_verbose(self, query_point):
-        """A verbose query in the k-tree structure for a given point.
-            Use this method to add more query results.
+        """
+            Runs a verbose query in the k-tree structure for a given point.
+                Use this method to add more query results.
 
-        Args:
-            query_point (torch.tensor): A point vector (in the objects' dimension).
-        Returns:
-            dict: A dictionary with properties
-            - nn (object): The nearest neighbor data object with respect to the query point.
-            - cluster_index (str): The index property of the leaf node the nearest neighbour belongs to.
+            Parameters:
+                query_point (torch.Tensor): a point vector (in the objects' dimension)
+
+            Returns:
+                dict: A dictionary with properties
+                - nn (object): the nearest neighbor data object with respect to the query point
+                - cluster_index (str): the index property of the leaf node the nearest neighbour belongs to
+                - predictions per layer (list): a list with a prediction for each node visited from the query
         """
         predictions_per_layer = []
         query_point = query_point if torch.is_tensor(query_point) else torch.tensor(query_point)
@@ -173,6 +218,18 @@ class Ktree:
         }
 
     def query_maxsum(self, query_points):
+        """
+            Runs a query in the k-tree structure for a given list of points using the max sum criterion.
+                In each layer the summed prediction (i.e. the sum of its own prediction
+                and all its parents' predictions) is calculated for each node in the layer
+                and the one selected is the leaf with the highest summed prediction.
+
+            Parameters:
+                query_points (torch.Tensor): a list of point vectors (in the objects' dimension)
+
+            Returns:
+                list[object]: a list of the nearest neighbor data object for each query point
+        """
         leaves = self.get_leaves()
         leaf_sums = self.root.get_leaf_sums(query_points)
         # print("Leaf_sums are:",leaf_sums)
@@ -181,15 +238,14 @@ class Ktree:
         # print(f"Nn is: {leaves[maxsum_indices[0]].query(query_points[0])}")
         return [leaves[maxsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
 
-    def querry_knn_per_layer(self, query_points, k, eps=0):
+    def query_knn_per_layer(self, query_points, k, eps=0):
         """
-            #TODO: implement this
-            Get k best choices per layer, or eps
+            Gets the best k choices per layer, or eps.
             
-            Args:
-                query_points (torch.tensor): A point vector (in the objects' dimension).
-                k (int): The number of best choices per layer.
-                eps (int): Sensitivity parameter.
+            Parameters:
+                query_points (torch.Tensor): a point vector (in the objects' dimension).
+                k (int): the number of best choices per layer to select
+                eps (int): sensitivity parameter
         """
         if eps == 0:
             pass
@@ -220,6 +276,18 @@ class Ktree:
             # return the best choice
 
     def query_maxcumsum(self, query_points):
+        """
+            Runs a query in the k-tree structure for a given list of points using the max cumulative sum criterion.
+                In each layer the cumulative sum prediction (i.e. the sum of its own prediction
+                and all its parents' cumulative predictions) is calculated for each node in the layer
+                and the one selected is the leaf with the highest cumulative summed prediction.
+
+            Parameters:
+                query_points (torch.Tensor): a list of point vectors (in the objects' dimension)
+
+            Returns:
+                list[object]: a list of the nearest neighbor data object for each query point
+        """
         leaves = self.get_leaves()
         leaves_sum = self.root.get_leaf_cumsums(query_points)
         # print("Leaf_sums are(cumsum):",leaves_sum)
@@ -229,12 +297,13 @@ class Ktree:
         return [leaves[maxcumsum_indices[i]].query(query_points[i]) for i in range(len(query_points))]
 
     def plot_leaf_clusters(self, n_samples=2000):
-        """Plot the cluster spaces defined by the tree's leaf nodes.
-            Take as samples an equal split of the space in each dimension (final number of samples will be reduced),
-            predict their cluster and plot them colored accordingly by converting node index to integer.
+        """
+            Plots the cluster spaces defined by the tree's leaf nodes.
+                Take as samples an equal split of the space in each dimension (final number of samples will be reduced),
+                predict their cluster and plot them colored accordingly by converting node index to integer.
 
-        Args:
-            n_samples (int): The number of the points to sample.
+            Parameters:
+                n_samples (int): The number of the points to sample.
         """
         n_samples_dim = int(n_samples ** (1 / self.dim))
         bounding_box = self.root.get_bounding_box()
@@ -252,14 +321,15 @@ class Ktree:
         ax.scatter(*tuple(samples[:, i] for i in range(samples.shape[1])), c=sample_clusters_ids)
 
     def plot_leaf_clusters_voronoi(self, n_samples=2000):
-        """Plot the voronoi diagram (by sampling) shared among the data
-            in the cluster spaces defined by the tree's leaf nodes.
-            Take as samples an equal split of the space in each dimension (final number of samples will be reduced),
-            find their nearest neighbour (by brute force) and the cluster they're in
-            and plot them colored accordingly by converting node index to integer.
+        """
+            Plots the voronoi diagram (by sampling) shared among the data
+                in the cluster spaces defined by the tree's leaf nodes.
+                Take as samples an equal split of the space in each dimension (final number of samples will be reduced),
+                find their nearest neighbour (by brute force) and the cluster they're in
+                and plot them colored accordingly by converting node index to integer.
 
-        Args:
-            n_samples (int): The number of the points to sample.
+            Parameters:
+                n_samples (int): The number of the points to sample.
         """
         n_samples_dim = int(n_samples ** (1 / self.dim))
         bounding_box = self.root.get_bounding_box()
@@ -285,6 +355,16 @@ class Ktree:
         ax.scatter(*tuple(samples[:, i] for i in range(samples.shape[1])), c=sample_clusters_ids)
 
     def get_student_accuracies(self, query_points):
+        """
+            Calculates the prediction accuracy for each (non-leaf) node student.
+
+            Parameters:
+                query_points (torch.Tensor): a list of point vectors (in the objects' dimension)
+
+            Returns:
+                dict: a dictionary with a key for each non-leaf node index,
+                    each valued with the ratio of successful query predictions
+        """
         queue = Queue()
         queue.put(self.root)
         correct_predictions_per_student = {}
@@ -311,10 +391,47 @@ class Ktree:
         return student_accuracies
 
     class Node:
-        """Implements a node class to use in a tree."""
+        """
+            Implements a node class to use in a tree.
+            
+            Attributes:
+                device (torch.device): the currently selected device for torch
+                data (np.array): the data (objects) belonging to this node
+                student (Student|None): the student model
+                children (list[Ktree.Node]): a list of the children Node objects
+                ktree (Ktree): the k-tree to which the node belongs
+                index (str): the index of the node, a string of integers describing the child path from root
+                best_z (torch.Tensor): a list of equal length as the data containing the index of the closest centroid
+                best_reg (int): the regularised projection of the centroids
+                parent (Ktree.Node): the parent node of this node, None for the k-tree root node
+                un_points (np.array|None): the points returned by the uncertainty area sampler
+                un_labels (torch.Tensor|None): the labels of the uncertainty area points
+                un_energy (torch.Tensor|None): the predicted energies of the uncertainty area points
+
+            Methods:
+                get_bounding_box (): Calculates and returns the bounding box of the data.
+                create_student (save_path_prefix="", plot=False): Creates the student model.
+                create_student_from_config (path): Creates the node student from file configuration.
+                isLeaf (): Returns whether the node is a leaf or not.
+                divide (): Creates child nodes where every child stores the data that each centroid is closest (best_z).
+                query (query_point): Returns (by brute force) the k nearest neighbours of the query point.
+                get_leaf_sums (query_points): Recursive function to calculate the energy from the node's student
+                    predictions of given query points and add it to each of its children's respective energy.
+                get_leaf_cumsums (query_points): Recursive function to calculate the cumulative energy from the node's
+                    student predictions of given query points and add it to each of its children's respective energy.
+        """
 
         def __init__(self, data, index, ktree, parent, device):
-            """Initialise the class."""
+            """
+                Initialises a node object.
+
+                Parameters:
+                    data (np.array): the data (objects) belonging to this node
+                    index (str): the index of the node, a string of integers describing the child path from root
+                    ktree (Ktree): the k-tree to which the node belongs
+                    parent (Ktree.Node): the parent node of this node, None for the k-tree root node
+                    device (torch.device): the currently selected device for torch
+            """
             # self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") # never
             self.device = device
             self.data = data
@@ -325,16 +442,16 @@ class Ktree:
             self.best_z = torch.empty(0)
             self.best_reg = 0
             self.parent = parent
-            self.energies = []
             self.un_points = None
             self.un_labels = None
             self.un_energy = None
 
         def get_bounding_box(self):
-            """Calculate and return the bounding box of the data.
+            """
+                Calculates and returns the bounding box of the data.
 
-            Returns:
-                list: A list of [min, max] pairs for each dimension of the data.
+                Returns:
+                    list: A list of [min, max] pairs for each dimension of the data.
             """
             # The first "dim" columns have the centers, the second "dim" columns have the sizes.
             size_sup = 2 * np.max(self.data[:, self.ktree.dim:2 * self.ktree.dim])
@@ -342,6 +459,17 @@ class Ktree:
                     for i in range(self.ktree.dim)]
 
         def create_student(self, save_path_prefix="", plot=False):
+            """
+                Creates the student model. Main pipeline of the algorithm.
+                    First a teacher model is trained and predicts the best centroids to fit the data.
+                    Then points are sampled from areas where the best centroid is uncertain.
+                    Finally, a student model is trained to predict a query point to its best centroid.
+
+                Parameters:
+                    save_path_prefix (str): if set, the trained model and training parameters
+                        will be saved in the path specified here, appended by the node's index
+                    plot (bool): if set, plots about the trained models will be shown on runtime
+            """
             # If the node has no data, do nothing.
             if len(self.data) == 0:
                 return
@@ -544,6 +672,12 @@ class Ktree:
             self.student = student
 
         def create_student_from_config(self, path):
+            """
+                Creates the node student from file configuration.
+
+                Parameters:
+                    path (str): the path in which to look for the model config file
+            """
             width = self.ktree.student_args["width"]
             depth = self.ktree.student_args["depth"]
 
@@ -560,19 +694,32 @@ class Ktree:
             self.student = student
 
         def isLeaf(self):
+            """
+                Returns whether the node is a leaf or not.
+
+                Returns:
+                    bool: True if the node is a leaf, False otherwise
+            """
             return len(self.children) == 0
 
         def divide(self):
-            """Retrieve the data that exist in each of the clusters.
-                Create child nodes where every child stores one cluster, each containing
-                the data that the teacher predicted each centroid is closest (best_z).
-            """
+            """Creates child nodes where every child stores the data that each centroid is closest (best_z)."""
             for cluster in range(self.student.n_centroids):
                 cluster_data = self.data[self.best_z == cluster]
                 # Create a child node with the corresponding data.
                 self.children.append(Ktree.Node(cluster_data, f"{self.index}{cluster}", self.ktree, self, self.device))
 
         def query(self, query_point, k=1):
+            """
+                Returns (by brute force) the k nearest neighbours of the query point.
+
+                Parameters:
+                    query_point (torch.Tensor): a point vector (in the objects' dimension)
+                    k (int): the number of the nearest neighbours to return
+
+                Returns:
+                    list[object]: the k nearest neighbours of the query point
+            """
             query_point.to(self.device)
             query_point = torch.tensor(query_point) if not torch.is_tensor(query_point) else query_point
             # print("Query device is:", query_point.device)
@@ -588,15 +735,16 @@ class Ktree:
             return k_nearest
 
         def get_leaf_sums(self, query_points):
-            """Recursive function to calculate the energy from the node's student predictions
-                of given query points and add it to each of its children's respective energy.
+            """
+                Recursive function to calculate the energy from the node's student predictions
+                    of given query points and add it to each of its children's respective energy.
 
-            Args:
-                query_points (torch.Tensor): The query points.
+                Parameters:
+                    query_points (torch.Tensor): The query points.
 
-            Returns:
-                torch.Tensor: A tensor containing the totally summed energies of the query point predictions
-                    for each leaf node (equivalently for each path on the tree).
+                Returns:
+                    torch.Tensor: A tensor containing the totally summed energies of the query point predictions
+                        for each leaf node (equivalently for each path on the tree).
             """
             # Base case, for a leaf return 0s as its energies are calculated on the parent.
             if self.isLeaf():
@@ -611,16 +759,17 @@ class Ktree:
             return torch.hstack(tuple(sums))
 
         def get_leaf_cumsums(self, query_points, y_pred=None):
-            """Recursive function to calculate the cumulative energy from the node's student predictions
-                of given query points and add it to each of its children's respective energy.
+            """
+                Recursive function to calculate the cumulative energy from the node's student predictions
+                    of given query points and add it to each of its children's respective energy.
 
-            Args:
-                query_points (torch.Tensor): The query points.
-                y_pred (torch.Tensor): The prediction energy column (from the parent) for the current node.
+                Parameters:
+                    query_points (torch.Tensor): The query points.
+                    y_pred (torch.Tensor): The prediction energy column (from the parent) for the current node.
 
-            Returns:
-                torch.Tensor: A tensor containing the totally cumulatively summed energies of the query point
-                    predictions for each leaf node (equivalently for each path on the tree).
+                Returns:
+                    torch.Tensor: A tensor containing the totally cumulatively summed energies of the query point
+                        predictions for each leaf node (equivalently for each path on the tree).
             """
             # Base case, for a leaf return 0s as its energies are calculated on the parent.
             if self.isLeaf():

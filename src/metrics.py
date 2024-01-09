@@ -7,14 +7,14 @@ from src.utils.objects import squares, cuboids, ellipses
 # define Linf() function for a square and a point
 def Linf(square, point):
     """
-        Compute the Linf metric for a square and a point
+        Computes the L_inf metric for a square and a point.
 
         Parameters:
-            square (np.array): square coordinates
+            square (np.array): square vector representation
             point (np.array): point coordinates
 
         Returns:
-            min_dist (float): minimum distance between the point and the square
+            float: distance between the point and the square
     """
     square = squares.create_square2(square)
     # 1st put coords around point and transform
@@ -68,15 +68,14 @@ def Linf(square, point):
 # define simplified Linf() function for a square and a point
 def Linf_np(square, q_point):
     """
-        Compute the simplified Linf metric for a square and a point
+        Computes the simplified L_inf metric for a square and a point.
 
         Parameters:
-            square (np.array): square coordinates  
+            square (np.array): square vector representation
             q_point (np.array): point coordinates
 
         Returns:
-            min_dist (float): minimum distance between the point and the square
-
+            float: distance between the square and the point
     """
     min_dist = np.inf
     for point in square:
@@ -87,10 +86,29 @@ def Linf_np(square, q_point):
 
 
 def Linfp(x, y):
+    """
+        Computes the L_inf distance between two points.
+        Parameters:
+            x (np.array|torch.Tensor): first point
+            y (np.array|torch.Tensor): second point
+
+        Returns:
+            float: distance between the two points
+    """
     return torch.max(torch.abs(x - y))
 
 
 def Linf_array(q, c):
+    """
+    Computes a list of distances between two lists of points.
+    Parameters:
+        q (np.array|torch.Tensor): first list of points
+        c (np.array|torch.Tensor): second list of points
+
+    Returns:
+        torch.Tensor: tensor of size (len(q), len(c)) containing
+            all pairs of distances between the two given lists of points
+    """
     e = torch.zeros((q.shape[0], c.shape[0]))
     for i in range(q.shape[0]):
         for j in range(c.shape[0]):
@@ -99,6 +117,17 @@ def Linf_array(q, c):
 
 
 def Linf_3d(cuboid, point):
+    """
+        Computes the L_inf metric for a cuboid and a point.
+
+        Parameters:
+            cuboid (np.array|torch.Tensor): cuboid vector representation
+            point (np.array|torch.Tensor): point coordinates
+
+        Returns:
+            float: distance between the cuboid and the point,
+                -2 if the point is inside the cuboid
+    """
     cuboid = cuboid if not torch.is_tensor(cuboid) else cuboid.detach().numpy()
     point = point if not torch.is_tensor(point) else point.detach().numpy()
 
@@ -146,7 +175,7 @@ def Linf_simple(square, q_point):
             q_point (torch.Tensor): point coordinates
 
         Returns:
-            min_dist (float): minimum distance between the point and the square, 0 if inside
+            float: distance between the square and the point, 0 if inside
     """
     dev = square.device
     square = squares.create_square2(square).to(dev)
@@ -165,6 +194,15 @@ def Linf_simple(square, q_point):
 
 
 def distance_ellipse_2_point(ellipse, point):
+    """
+    Computes the distance between an ellipse and a point.
+    Parameters:
+        ellipse (np.array|torch.Tensor): ellipse vector representation
+        point (np.array|torch.Tensor): point coordinates
+
+    Returns:
+        float: distance between the ellipse and the point
+    """
     ellipse = ellipse if not torch.is_tensor(ellipse) else ellipse.detach().numpy()
     point = point if not torch.is_tensor(point) else point.detach().numpy()
     a = ellipse[0]

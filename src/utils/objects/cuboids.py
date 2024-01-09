@@ -3,15 +3,15 @@ import math
 import random
 
 
-def loadData(numberOfData, numberOfQueryPoints):
+def loadData(numberOfData):
     """
-        Load data from data folder
+        Loads cuboid objects from data folder.
 
         Parameters:
             numberOfData (int): number of data to load
 
         Returns:
-            data (np.array): data
+            np.array: the loaded cuboid data
 
         Important:
             The data must be in the following format:
@@ -22,21 +22,28 @@ def loadData(numberOfData, numberOfQueryPoints):
     """
     print("Loading data...")
     ref_data = './data_3d/10000cb/' + str(numberOfData) + 'cb_1_4.npy'
-    ref_query_points = './data/squares/' + str(numberOfQueryPoints) + '/' + str(numberOfQueryPoints)
     data = np.load(ref_data)
     data[:, -1] = np.deg2rad(data[:, -1])
-    datapoints = np.load(ref_query_points + 'qp.npy')
     print("Data loaded.")
 
-    return data, datapoints
+    return data
 
 
 def create_cuboid(cuboid):
     """
-        Create a cuboid given its center of mass, edge sizes and rotations
+        Creates a cuboid given its center of mass, edge sizes and rotations.
 
         Parameters:
-            square (list): [x_center, y_center, z_center, width, height, depth, theta, psi, phi]
+            cuboid (list): [x_center, y_center, z_center, width, height, depth, theta, psi, phi]
+                x_center (float): x coordinate of the center of the cuboid
+                y_center (float): y coordinate of the center of the cuboid
+                z_center (float): z coordinate of the center of the cuboid
+                width (float): size of the x-axis of the cuboid (without rotation)
+                height (float): size of the y-axis of the cuboid (without rotation)
+                depth (float): size of the z-axis of the cuboid (without rotation)
+                theta (float): rotation around the x-axis of the cuboid in degrees
+                psi (float): rotation around the y-axis of the cuboid in degrees
+                phi (float): rotation around the z-axis of the cuboid in degrees
 
         Returns:
             np.array: 8x3 array of the vertices of the cuboid
@@ -73,15 +80,15 @@ def create_cuboid(cuboid):
 
 def rotate_point3(point, center, angle):
     """
-    Rotate a point around a center by a specified angle.
+        Rotates a point around a center by a specified angle.
 
-    Parameters:
-        point (list): The coordinates of the point [x, y, z]
-        center (list): The coordinates of the center [x, y, z]
-        angle (float): The angle of rotation in radians.
+        Parameters:
+            point (list): The coordinates of the point [x, y, z]
+            center (list): The coordinates of the center [x, y, z]
+            angle (float): The angle of rotation in radians.
 
-    Returns:
-        np.array: The new coordinates of the point after rotation.
+        Returns:
+            list: The new coordinates of the point after rotation.
     """
     x_shifted = point[0] - center[0]
     y_shifted = point[1] - center[1]
@@ -96,7 +103,7 @@ def rotate_point3(point, center, angle):
 
 def get_edges(vertices):
     """
-        Generate edges from vertices of a cuboid
+        Generates edges from vertices of a cuboid.
 
         Parameters:
             vertices (np.array): 8x3 array of the vertices of the cuboid
@@ -118,6 +125,16 @@ def get_edges(vertices):
 
 
 def check_if_intersect3_simple(cuboid1, cuboid2):
+    """
+        Checks if two axis-aligned 3D cuboids intersect.
+
+        Parameters:
+            cuboid1 (np.array): 8x3 array of the vertices of the first cuboid
+            cuboid2 (np.array): 8x3 array of the vertices of the second cuboid
+
+        Returns:
+            bool: True if the two cuboids intersect, False otherwise
+    """
     cube1_x = [vertex[0] for vertex in cuboid1]
     cube1_y = [vertex[1] for vertex in cuboid1]
     cube1_z = [vertex[2] for vertex in cuboid1]
@@ -144,7 +161,7 @@ def check_if_intersect3_simple(cuboid1, cuboid2):
 
 def check_if_intersect3(cuboid1, cuboid2):
     """
-        Check if two 3D cuboids intersect
+        Checks if two 3D cuboids intersect.
 
         Parameters:
             cuboid1 (np.array): 8x3 array of the vertices of the first cuboid
@@ -164,7 +181,7 @@ def check_if_intersect3(cuboid1, cuboid2):
 
 def check_intersect(p1, q1, p2, q2):
     """
-        Check if two line segments intersect
+        Checks if two line segments intersect.
 
         Parameters:
             p1 (np.array): starting point of the first line segment
@@ -175,7 +192,6 @@ def check_intersect(p1, q1, p2, q2):
         Returns:
             bool: True if the two line segments intersect, False otherwise
     """
-
     def orientation(p, q, r):
         val = (q[1] - p[1]) * (r[0] - q[0]) - (q[0] - p[0]) * (r[1] - q[1])
         if val == 0:
@@ -183,8 +199,8 @@ def check_intersect(p1, q1, p2, q2):
         return 1 if val > 0 else 2
 
     def on_segment(p, q, r):
-        return q[0] <= max(p[0], r[0]) and q[0] >= min(p[0], r[0]) and q[1] <= max(p[1], r[1]) and q[1] >= min(p[1],
-                                                                                                               r[1])
+        return (q[0] <= max(p[0], r[0]) and q[0] >= min(p[0], r[0])
+                and q[1] <= max(p[1], r[1]) and q[1] >= min(p[1], r[1]))
 
     o1 = orientation(p1, q1, p2)
     o2 = orientation(p1, q1, q2)
@@ -214,14 +230,21 @@ def check_intersection_3d(data, cuboid):
         Check if a cuboid intersects with any of the cuboids in data
 
         Parameters:
-            data (list): list of np.array of the vertices of the cuboids
-            x (float): x coordinate of the center of the cuboid
-            y (float): y coordinate of the center of the cuboid
-            size (float): size of the cuboid
-            rotation (float): rotation of the cuboid in degrees
+            data (np.array): list of cuboids in format
+                [x_center, y_center, z_center, width, height, depth, theta, psi, phi]
+            cuboid (list): [x_center, y_center, z_center, width, height, depth, theta, psi, phi]
+                x_center (float): x coordinate of the center of the cuboid
+                y_center (float): y coordinate of the center of the cuboid
+                z_center (float): z coordinate of the center of the cuboid
+                width (float): size of the x-axis of the cuboid (without rotation)
+                height (float): size of the y-axis of the cuboid (without rotation)
+                depth (float): size of the z-axis of the cuboid (without rotation)
+                theta (float): rotation around the x-axis of the cuboid in degrees
+                psi (float): rotation around the y-axis of the cuboid in degrees
+                phi (float): rotation around the z-axis of the cuboid in degrees
 
         Returns:
-            bool: True if the cuboid intersects with any of the cuboids in data
+            bool: True if the cuboid intersects with any of the cuboids in data, False otherwise
     """
     # create a cuboid
     cuboid = create_cuboid(cuboid)
@@ -237,21 +260,29 @@ def check_intersection_3d(data, cuboid):
 
 def create_data_3d(numberOfData, x0, width, height, depth, theta, psi, phi, cube=True, axis_aligned=True):
     """
-        Create numberOfData data
+        Creates non-overlapping cuboids from initial conditions.
 
         Parameters:
-            numberOfData (int): number of data to load
+            numberOfData (int): number of data to generate
+            x0 (list): list of [x, y, z] points to initiate the cuboid center
+            width (list): list of width values to pick randomly
+            height (list): list of height values to pick randomly
+            depth (list): list of depth values to pick randomly
+            theta (list): list of theta values to pick randomly
+            psi (list): list of psi values to pick randomly
+            phi (list): list of phi values to pick randomly
+            cube (bool, optional): flag for whether the generated cuboids are cubes or not
+            axis_aligned (bool, optional): flag for whether the generated cuboids are axis-aligned or not
 
         Returns:
-            data (np.array): data
+            list: list of the generated non-overlapping cuboids
 
         Important:
             The data are in the following format:
-            [x0, y0, z0, w, h, d, theta, phi] where:
-            x0, y0: coordinates of the center of the cuboid
-            w, h, z: width, height and depth of the cuboid
-            theta: rotation angle of the square in rad
-            phi: second
+            [x0, y0, z0, w, h, d, theta, psi, phi] where:
+            x0, y0, z0: coordinates of the center of the cuboid
+            w, h, d: width, height and depth of the cuboid
+            theta, psi, phi: rotation angles of the cuboid in rad
     """
     data = []
     point_cnt = 0
@@ -269,7 +300,7 @@ def create_data_3d(numberOfData, x0, width, height, depth, theta, psi, phi, cube
             print("reached ", cnt, " cuboids!")
             np.save(f"./data_3d/10000cb/{cnt}cb_1_4.npy", data)
 
-        print("creating square ", cnt, "\n")
+        print("creating cuboid ", cnt, "\n")
         # Create the square with random center of mass
         x = x0[point_cnt][0]
         y = x0[point_cnt][1]
@@ -302,8 +333,6 @@ def create_data_3d(numberOfData, x0, width, height, depth, theta, psi, phi, cube
             print("num of collisions is: ", num_of_collisions)
             # Terminate if maximum number of collisions reached
             if num_of_collisions == maximum_num_of_collisions:
-                print(
-                    "max number of collisions reached! dataset creation terminates!\n"
-                )
+                print("max number of collisions reached! dataset creation terminates!\n")
                 break
     return data

@@ -6,14 +6,16 @@ from src.metrics import Linf_array
 
 def Reg(outputs, bounding_box, node_index, parent_node):
     """
-        Regularize the output of the projector inside the data-area
+        Regularizes the output of the projector inside the data-area.
 
         Parameters:
-            outputs (list): list of the outputs of the projector
+            outputs (torch.Tensor): list of the outputs of the projector
             bounding_box (list[list]): list of [min, max] limits for each coordinate
+            node_index (str): index of the node currently being used
+            parent_node (Ktree.Node): parent node of the node currently being used
 
         Returns:
-            reg_cost (float): regularization cost
+            float: regularization cost
     """
     layer = len(node_index) - 1
     alpha = 10 * layer  # maybe 5 ?
@@ -46,13 +48,13 @@ def Reg(outputs, bounding_box, node_index, parent_node):
 
 def RegLatent(latent):
     """
-        Regularize the fuzziness of the latent variable
+        Regularizes the fuzziness of latent variables.
 
         Parameters:
-            latent (list): list of the latent variables
+            latent (torch.Tensor): list of the latent variables
 
         Returns:
-            reg_cost (float): regularization cost
+            float: regularization cost
 
         #TODO check if regularization can be written in a more elegant way
             like mu^2 = 0
@@ -70,15 +72,15 @@ def RegLatent(latent):
 
 def loss_functional(y_hat, y_target, metric):
     """
-        Computes the loss functional of the model
+        Computes the loss functional of the model.
 
         Parameters:
-            y_hat (list): list of the outputs of the projector
-            y_target (list): list of the target outputs
-            metric (function): metric to use to compute the loss
+            y_hat (torch.Tensor): list of the outputs of the projector
+            y_target (torch.Tensor): list of the target outputs
+            metric (callable): metric to use to compute the loss
 
         Returns:
-            loss (float): loss functional
+            float: loss functional
     """
     n_centroids = y_hat.shape[0]  # number of centroids
     n_data = y_target.shape[0]  # number of data
@@ -95,17 +97,17 @@ def loss_functional(y_hat, y_target, metric):
 # the sampler will be a module or a function?
 def getUncertaintyArea(outputs, N, M, epsilon, bounding_box):
     """
-        Sample N points in the area defined by x_area and y_area
+        Samples N points inside the data-area.
 
         Parameters:
-            outputs: the outputs of the teacher network
-            N: number of points to sample
-            M: number of points to return
-            epsilon: the epsilon ball
+            outputs (torch.Tensor): the outputs of the teacher network
+            N (int): number of points to sample
+            M (int): number of points to return
+            epsilon (float): the epsilon ball
             bounding_box (list[list]): list of [min, max] limits for each coordinate
 
         Returns:
-            m_points: the M points that are in the uncertainty area
+            list[list]: the M points that are in the uncertainty area
     """
     print("=" * 20)
     print("getUncertaintyArea")

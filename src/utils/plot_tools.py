@@ -11,15 +11,12 @@ from src.utils.embeddings import loss_functional
 
 def plot_data(obj, size=10, limits=[0, 300, 0, 300]):
     """
-        Plot the data points
+        Plots given data objects.
 
         Parameters:
-            data: data to be plotted
-            size: size of the plot
-            limits: limits of the plot
-
-        Returns:
-            None
+            obj (torch.Tensor): data objects to be plotted
+            size (int): size of the plot
+            limits (list): limits of the plot
     """
     # turn data -1 element from deg to rad
     # copy obj to data
@@ -48,17 +45,14 @@ def plot_data(obj, size=10, limits=[0, 300, 0, 300]):
 
 def plot_data_on_manifold(fig, ax, obj, size=10, limits=[-10, 10, -10, 10]):
     """
-        Plot the data points
+        Plots the data points on a manifold.
         
         Parameters:
             fig: figure
             ax: axis
-            data: data to be plotted
-            size: size of the plot
-            limits: limits of the plot
-        
-        Returns:
-            None: Updates the figure, axis
+            obj (torch.Tensor): data objects to be plotted
+            size (int): size of the plot
+            limits (list): limits of the plot
     """
     data = np.copy(obj)
     data[:, -1] = np.rad2deg(data[:, -1])
@@ -86,16 +80,17 @@ def plot_data_on_manifold(fig, ax, obj, size=10, limits=[-10, 10, -10, 10]):
 
 def AM_dem(signal, fc, fs=None, order=4, Ns=None):
     """
-        Amplitude demodulation of the signal
+        Amplitude demodulation of the signal.
         
         Parameters:
-            signal: signal to be demodulated
-            fc: carrier frequency
-            fs: sampling frequency
-            order: order of the filter
+            signal (np.array): signal to be demodulated
+            fc (float): carrier frequency
+            fs (int|None): sampling frequency
+            order (int): order of the filter
+            Ns (int|None): number of signal inputs to use
         
         Returns:
-            demodulated signal
+            (np.array, np.array, np.array): the demodulated signal
     """
     if Ns is not None:
         signal = signal[:Ns]
@@ -136,17 +131,14 @@ def AM_dem(signal, fc, fs=None, order=4, Ns=None):
 
 def plot_AM_dem(upper_signal, lower_signal, filtered_signal, signal, best_epoch):
     """
-        Plot the demodulated signal
+        Plots the demodulated signal.
         
         Parameters:
-            upper_signal: upper signal
-            lower_signal: lower signal
-            filtered_signal: filtered signal
-            signal: original signal
-            best_epoch: best epoch
-            
-        Returns:
-            None: plots the demodulated signal
+            upper_signal (np.array): upper signal
+            lower_signal (np.array): lower signal
+            filtered_signal (np.array): filtered signal
+            signal (np.array): original signal
+            best_epoch (int): best epoch
     """
     fig, ax = plt.subplots(figsize=(10, 10))
     ax.scatter(range(filtered_signal.shape[0]),
@@ -187,20 +179,19 @@ def createManifold(model
                    , y_lim=[0, 300]
                    ):
     """
-        Create the manifold
+        Creates a manifold.
         
         Parameters:
             model: model to be used
-            y_pred: predicted outputs
-            metric: the metric to use for the loss function
-            x_discr: x discretization
-            y_discr: y discretization
-            x_lim: x limits
-            y_lim: y limits
+            y_pred (torch.Tensor): predicted outputs
+            metric (callable): the metric to use for the loss function
+            x_discr (int): x discretization
+            y_discr (int): y discretization
+            x_lim (list): x limits
+            y_lim (list): y limits
             
         Returns:
             manifold: manifold
-            
     """
     manifold = torch.zeros((x_discr, y_discr, 4))
     for i, x in enumerate(np.linspace(x_lim[0], x_lim[1], x_discr)):
