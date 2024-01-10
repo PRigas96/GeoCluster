@@ -661,7 +661,7 @@ class Ktree:
                     "es": critic.es
                 }
                 np.save(f"{save_path_prefix}_critic_training_results.npy", critic_results)
-                print(f"Saved clustering training results to {save_path_prefix}_critic_training_results.npy")
+                print(f"Saved critic training results to {save_path_prefix}_critic_training_results.npy")
 
             # Plot the critic training results.
             if plot:

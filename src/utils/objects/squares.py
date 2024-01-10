@@ -92,7 +92,7 @@ def create_square2(square):
     ])
 
     # Rotate the vertices according to the given rotation
-    rotation = torch.tensor(rotation)
+    rotation = rotation if torch.is_tensor(rotation) else torch.tensor(rotation)
     rotation_matrix = torch.tensor([
         [torch.cos(rotation), -torch.sin(rotation)],
         [torch.sin(rotation), torch.cos(rotation)]
