@@ -11,6 +11,7 @@ Figure: Illustration of first hierarchical training.
 - [Installation](#installation)
 - [Code Structure](#code-structure)
 - [Getting Started](#getting-started)
+- [License](#license)
 
 ## Method
 
@@ -131,3 +132,7 @@ Threshold of the number of data contained in a leaf node on the k-tree, for the 
     ```python
     ktree.query([4, 2])
     ```
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
