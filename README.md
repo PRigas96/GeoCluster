@@ -3,8 +3,9 @@
 Minas Dioletis, Ioannis Z. Emiris, George Ioannakis, Evanthia Papadopoulou, Thomas Pappas, Panagiotis Repouskos,
 Panagiotis Rigas, and Charalampos Tzamos
 
-![header](/dev/images/pipelineGeoCluster.png)
-Figure: Illustration of first hierarchical training.
+![header](images/clustering_critic_models.png)
+Figure: Proposed Network. (a) illustrates the network topology, for the construction of a node
+in the hierarchical tree T. (b) showcases the critic network assigning weights in edges of a graph
 
 ## Table of Contents
 - [Method](#method)
@@ -15,11 +16,18 @@ Figure: Illustration of first hierarchical training.
 
 ## Method
 
-We aim to simplify and optimize the process of finding the nearest neighbor in a set of objects given a queery point, and a metric. To achive this we propose a hierarchical embedding predictive ebm that encodes the nearest neigbor information in a linear head (the student). This result in a graph of networks that is used for inference.
-![header](/dev/images/inferenceGeoCluster.png)
-Figure: Illustration of hierarchical graph, used for inference.
+We aim to simplify and optimize the process of finding the nearest neighbor in a set of objects given a query point, and a metric.
+Our method employs a latent-variable generative model for hierarchical clustering, creating
+a tree structure where nodes represent data space regions, not just centroids.
+Critics assess and value the edges in this tree-graph, converting it to a weighted graph for
+navigational decision-making by an actor with a policy.
+Explicit data embedding in a higher-dimensional space transforms complex shapes into
+discrete points, enabling divergence calculations for iterative state refinement.
+This approach, termed GeoCluster, dynamically quantifies data, aligning with
+its natural structure and distribution, approximating a hierarchical-voronoi structure.
 
-The teacher is trained in a self-supervised manner with regularizers to learn the underlying structure of the data while the student is trained to mimic the teacher and focus on the nearest neighbor information.
+![header](images/clustering_example.png)\
+Figure: Illustration of a space split into clusters.
 
 Key points of our method are:
 
@@ -92,46 +100,46 @@ Threshold of the number of data contained in a leaf node on the k-tree, for the 
 ### Application
 
 1. Load a dataset:
-    ```python
-    import numpy as np
-    dataset = np.load('./your_path/your_data.npy')
-    ```
+   ```python
+   import numpy as np
+   dataset = np.load('./your_path/your_data.npy')
+   ```
 2. Define the space dimension:
-    ```python
-    dim = 2  # or any integer depending on your data
-    ```
+   ```python
+   dim = 2  # or any integer depending on your data
+   ```
 3. Define a metric function:
-    ```python
-    def my_metric(data_entry:[float], point:[float]):
-        """Function that calculate the distance between a data entry and a point."""
-        ...
-    ```
+   ```python
+   def my_metric(data_entry:[float], point:[float]):
+     """Function that calculates the distance between a data entry and a point."""
+     ...
+   ```
 4. Define the arguments for the models and the UN sampler:
-    ```python
-    clustering_args = {...}
-    un_args = {...}
-    critic_args = {...}
-    ```
+   ```python
+   clustering_args = {...}
+   un_args = {...}
+   critic_args = {...}
+   ```
 5. Define a threshold:
-    ```python
-    threshold = len(dataset) / 100  # or any number or heuristic that works for your data
-    ```
+   ```python
+   threshold = len(dataset) / 100  # or any number or heuristic that works for your data
+   ```
 6. Initiate the k-tree:
-    ```python
-    import torch
-    from src.k_tree import Ktree
-    
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    ktree = Ktree(threshold, dataset, my_metric, clustering_args, un_args, critic_args, device, dim)
-    ```
+   ```python
+   import torch
+   from src.k_tree import Ktree
+   
+   device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+   ktree = Ktree(threshold, dataset, my_metric, clustering_args, un_args, critic_args, device, dim)
+   ```
 7. Create the tree:
-    ```python
-    ktree.create_tree()
-    ```
+   ```python
+   ktree.create_tree()
+   ```
 8. Run queries for different points in the space dimension defined above:
-    ```python
-    ktree.query([4, 2])
-    ```
+   ```python
+   ktree.query([4, 2])
+   ```
 
 ## License
 
