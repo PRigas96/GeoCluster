@@ -21,7 +21,7 @@ def loadData(numberOfData):
             theta, psi, phi: rotation angles of the cuboid in rad for every axis
     """
     print("Loading data...")
-    ref_data = './data_3d/10000cb/' + str(numberOfData) + 'cb_1_4.npy'
+    ref_data = './data/cuboids/' + str(numberOfData) + 'cb_1_4.npy'
     data = np.load(ref_data)
     data[:, -1] = np.deg2rad(data[:, -1])
     print("Data loaded.")
@@ -298,7 +298,7 @@ def create_data_3d(numberOfData, x0, width, height, depth, theta, psi, phi, cube
         # Store the results for every 500 cuboids created, starting from 1.000 and ending to 10.000
         if 10000 <= cnt <= 50000 and (cnt - 10000) % 5000 == 0:
             print("reached ", cnt, " cuboids!")
-            np.save(f"./data_3d/10000cb/{cnt}cb_1_4.npy", data)
+            np.save(f"./data/cuboids/{cnt}cb_1_4.npy", data)
 
         print("creating cuboid ", cnt, "\n")
         # Create the square with random center of mass
