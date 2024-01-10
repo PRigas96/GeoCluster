@@ -27,7 +27,8 @@ This approach, termed GeoCluster, dynamically quantifies data, aligning with
 its natural structure and distribution, approximating a hierarchical-voronoi structure.
 
 ![header](images/clustering_example.png)\
-Figure: Illustration of a space split into clusters.
+Figure: The regions are defined by the tree leaf nodes.
+The model has high accuracy on yellow areas and lower towards the green ones.
 
 Key points of our method are:
 
@@ -79,22 +80,22 @@ The demo uses as input 1000 squares with rotation in 2D and as metric the L<sub>
 
 ### Parameters
 
-#### Input data
+#### *Input data*
 As the algorithm is input-agnostic, any type of data can be utilised as long as they can be embedded in a vector format and can be loaded as a `numpy` array.
 
-#### Space dimension
+#### *Space dimension*
 The space dimension should then be defined.
 This will make the *Clustering* model cluster the data around centroids of the specified dimension, as well as allow the *Critic* to make predictions of queries of points in the same dimension.
 
-#### Metric
+#### *Metric*
 A metric function should be provided which can calculate the distance between a data vector and a query point as described above.
 
-#### Model parameters
+#### *Model parameters*
 There are two neural network models and one sampler than can need to be parametrised.
 See the [demo](demo.ipynb) for a detailed list and a brief explanation of the parameters.
 More information can be found in the [models' source code](src/models.py).
 
-#### Termination criteria
+#### *Termination criteria*
 Threshold of the number of data contained in a leaf node on the k-tree, for the tree division phase to end.
 
 ### Application
