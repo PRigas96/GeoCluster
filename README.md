@@ -3,10 +3,6 @@
 Minas Dioletis, Ioannis Z. Emiris, George Ioannakis, Evanthia Papadopoulou, Thomas Pappas, Panagiotis Repouskos,
 Panagiotis Rigas, and Charalampos Tzamos
 
-![header](images/clustering_critic_models.png)
-Figure: Proposed Network. (a) illustrates the network topology, for the construction of a node
-in the hierarchical tree T. (b) showcases the critic network assigning weights in edges of a graph
-
 ## Table of Contents
 - [Method](#method)
 - [Installation](#installation)
