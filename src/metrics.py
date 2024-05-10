@@ -313,7 +313,7 @@ def compute_distances_3d(segments, centroid):
     return distances
 
 
-def get_dist_matrix(data, centroids, dist_function):
+def get_dist_matrix_ls(data, centroids, dist_function):
     # init.
     dist_matrix = torch.zeros(data.shape[0], centroids.shape[0])
     for i in range(centroids.shape[0]):

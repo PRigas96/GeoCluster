@@ -7,7 +7,7 @@ from src.utils.embeddings import Reg, RegLatent, loss_functional
 import matplotlib.pyplot as plt
 from copy import deepcopy
 import math as m
-from src.metrics import get_dist_matrix
+from src.metrics import get_dist_matrix_ls
 
 
 class Clustering(nn.Module):
@@ -371,7 +371,7 @@ class ClusteringLS:
         # print(f"Data shape: {data.shape}")
         # print(f"Centroids shape: {centroids.shape}")
         # print(f"Dist function: {dist_function}")
-        dist_matrix = get_dist_matrix(self.data, centroids[:1], self.dist_function)
+        dist_matrix = get_dist_matrix_ls(self.data, centroids[:1], self.dist_function)
 
         for i in range(1, self.n_clusters):
             # choose the next centroid
@@ -407,7 +407,7 @@ class ClusteringLS:
             else:
                 raise ValueError("dim should be 2 or 3")
             # update dist_matrix
-            dist_matrix = get_dist_matrix(self.data, centroids[: i + 1], self.dist_function)
+            dist_matrix = get_dist_matrix_ls(self.data, centroids[: i + 1], self.dist_function)
         return centroids
 
     def get_points_from_emb(self):
@@ -448,14 +448,14 @@ class ClusteringLS:
             self.data, self.k, self.dist_function, self.dim, n_trials=n_trials
         )
         # get initial divergence
-        dist_matrix = get_dist_matrix(self.data, centroids, self.dist_function)
+        dist_matrix = get_dist_matrix_ls(self.data, centroids, self.dist_function)
         div = torch.sum(torch.min(dist_matrix, dim=1).values)
         print(f"Initial divergence: {div}")
 
         # do the iterations
         for i in range(n_iter):
             # get the distances
-            dist_matrix = get_dist_matrix(self.data, centroids, self.dist_function)
+            dist_matrix = get_dist_matrix_ls(self.data, centroids, self.dist_function)
             # get the labels
             labels = torch.argmin(dist_matrix, dim=1)
             # update the centroids
@@ -474,7 +474,7 @@ class ClusteringLS:
 
     def predict(self, centroids):
         # get the distances
-        dist_matrix = get_dist_matrix(self.data, centroids, self.dist_function)
+        dist_matrix = get_dist_matrix_ls(self.data, centroids, self.dist_function)
         # get the labels
         labels = torch.argmin(dist_matrix, dim=1)
         return labels
