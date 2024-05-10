@@ -3,6 +3,17 @@ import torch
 
 
 def random_queries(ktree, n=300, times=4, k=1):
+    """
+        Generates random points, runs Nearest Neighbour queries on those points on a given trained ktree
+            and finally calculates and prints the queries' accuracy compared to the actual Nearest Neighbour.
+            Repeats the process a few times and also prints the average accuracy achieved.
+
+        Parameters:
+            ktree (Ktree): ktree object with trained models, capable of making Nearest Neighbour queries
+            n (int): number of points to generate
+            times (int): number of times to repeat the process
+            k (int): ktree query parameter to get and use the top `k` nearest neighbours
+    """
     leaves = ktree.get_leaves()
     height = max([len(leaf.index) for leaf in leaves])
 
@@ -47,6 +58,15 @@ def random_queries(ktree, n=300, times=4, k=1):
 
 
 def serialised_queries(ktree, n=500, k=1):
+    """
+        Generates serialised points, runs Nearest Neighbour queries on those points on a given trained ktree
+            and finally calculates and prints the queries' accuracy compared to the actual Nearest Neighbour.
+
+        Parameters:
+            ktree (Ktree): ktree object with trained models, capable of making Nearest Neighbour queries
+            n (int): number of points to generate
+            k (int): ktree query parameter to get and use the top `k` nearest neighbours
+    """
     leaves = ktree.get_leaves()
     height = max([len(leaf.index) for leaf in leaves])
 

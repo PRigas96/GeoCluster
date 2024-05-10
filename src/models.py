@@ -3,12 +3,13 @@ import numpy as np
 from torch import nn
 from torch.nn.functional import one_hot
 from torch.distributions import Dirichlet
-from src.ebmUtils import Reg, RegLatent, loss_functional
+from src.utils.embeddings import Reg, RegLatent, loss_functional
 import matplotlib.pyplot as plt
 from copy import deepcopy
 import math as m
 
-class Teacher(nn.Module):
+
+class Clustering(nn.Module):
     """
         Latent Variable Generative Energy Based Model
 
@@ -34,18 +35,19 @@ class Teacher(nn.Module):
         TODO: get pump to work in module 
 
     """
-    def __init__(self, 
+
+    def __init__(self,
                  n_centroids,
-                 output_dim, 
+                 output_dim,
                  encoder_activation,
                  encoder_depth,
                  projector_width,
                  projector_depth,
-                 latent_size=400, 
-                 node_index="0", 
-                 parent_node=None, 
+                 latent_size=400,
+                 node_index="0",
+                 parent_node=None,
                  dim=2):
-        super(Teacher, self).__init__()
+        super(Clustering, self).__init__()
         self.n_centroids = n_centroids
         self.output_dim = output_dim
         self.latent_size = latent_size
@@ -55,24 +57,22 @@ class Teacher(nn.Module):
         enc_layer = []
         for i in range(encoder_depth):
             # encoder will start from latent size and go to output dim in encoder_depth steps.  No width is needed
-            times = latent_size // encoder_depth # e.g. 400 // 4 = 100
+            times = latent_size // encoder_depth  # e.g. 400 // 4 = 100
             times = times if times != 0 else 1
             flag = encoder_activation
             if i == 0:
-                enc_layer.append(nn.Linear(latent_size, latent_size//(times*(i+1))))
+                enc_layer.append(nn.Linear(latent_size, latent_size // (times * (i + 1))))
                 if flag:
                     enc_layer.append(nn.ReLU())
             elif i == encoder_depth - 1:
-                enc_layer.append(nn.Linear(latent_size//(times*(i)), output_dim))
+                enc_layer.append(nn.Linear(latent_size // (times * (i)), output_dim))
             else:
-                enc_layer.append(nn.Linear(latent_size//(times*(i)), latent_size//(times*(i+1))))
+                enc_layer.append(nn.Linear(latent_size // (times * (i)), latent_size // (times * (i + 1))))
                 if flag:
                     enc_layer.append(nn.ReLU())
 
-
-            
-        self.encoder= nn.Sequential(*enc_layer)
-        #self.encoder = nn.Sequential(nn.Linear(latent_size, output_dim, bias=False),)
+        self.encoder = nn.Sequential(*enc_layer)
+        # self.encoder = nn.Sequential(nn.Linear(latent_size, output_dim, bias=False),)
         # init z to one-hot descrete latent variable
         self.z = nn.Parameter(
             Dirichlet(torch.ones(n_centroids)).sample((latent_size,)).T
@@ -81,48 +81,47 @@ class Teacher(nn.Module):
         predictor_layer = []
         for i in range(projector_depth):
             if i == 0:
-                predictor_layer.append(nn.Linear(n_centroids, projector_width//2))
+                predictor_layer.append(nn.Linear(n_centroids, projector_width // 2))
                 predictor_layer.append(nn.ReLU())
-                predictor_layer.append(nn.Linear(projector_width//2, projector_width))
+                predictor_layer.append(nn.Linear(projector_width // 2, projector_width))
             elif i == projector_depth - 1:
                 predictor_layer.append(nn.Linear(projector_width, n_centroids))
             else:
                 predictor_layer.append(nn.Linear(projector_width, projector_width))
                 predictor_layer.append(nn.ReLU())
         self.predictor = nn.Sequential(*predictor_layer)
-                
 
         self.projector = nn.Sequential(
-            nn.Linear(n_centroids, n_centroids *10),
+            nn.Linear(n_centroids, n_centroids * 10),
             nn.ReLU(),
-            nn.Linear(n_centroids *10, n_centroids *100),
+            nn.Linear(n_centroids * 10, n_centroids * 100),
             nn.ReLU(),
-            nn.Linear(n_centroids *100, n_centroids *10),
+            nn.Linear(n_centroids * 100, n_centroids * 10),
             nn.ReLU(),
-            nn.Linear(n_centroids *10, n_centroids),
+            nn.Linear(n_centroids * 10, n_centroids),
         )
         self.z_l = None
         self.z_fuzzy = None
         self.c = None
         self.c_fuzzy = None
-        
+
         # Store training variables.
         self.best_model_state = None  # best model state
-        self.best_outputs = None  # best outputs
+        self.best_centroids = None  # best centroids
         self.best_z = None  # best latent
         self.best_lat = None  # best latent space
         self.best_epoch = None  # best epoch
-        self.p_p = None  # saved outputs
+        self.p_p = None  # saved centroids
         self.p_c = None  # saved costs
         self.reg_proj_array = None  # saved projection regularizers
         self.reg_latent_array = None  # saved latent regularizers
         self.memory = None  # saved memory
         self.cost_array = None  # saved costs
         self.dim = dim
-        
+
     def col_one_hot(self, z):
         # one hot encoding
-        #z = torch.argmax(z, dim=0)
+        # z = torch.argmax(z, dim=0)
         z = torch.argmin(z, dim=0)
         z = one_hot(z, num_classes=self.n_centroids).T
         if self.n_centroids == self.latent_size:
@@ -130,10 +129,10 @@ class Teacher(nn.Module):
             z = torch.eye(self.n_centroids)
 
         return z.float()
-    
+
     def get_z(self):
         return self.z
-    
+
     # sample z from without one-hot encoding
     def sample_z(self, regularize=False):
         if regularize:
@@ -144,15 +143,15 @@ class Teacher(nn.Module):
         return y, z
 
     def pump(self):
-        self.c 
-    
+        self.c
+
     def forward(self, z):
         z = self.col_one_hot(z)
         # make z dtype float
         y = self.encoder(z)
         self.z_l = y
         # make y fuzzy
-        y_std = torch.randn(y.shape)* 1
+        y_std = torch.randn(y.shape) * 1
         y_std = y_std.to(y.device)
         y = y + y_std
         self.z_fuzzy = y
@@ -161,7 +160,8 @@ class Teacher(nn.Module):
         self.c = y_hat
 
         return y_hat
-# debugging number of centroids
+
+    # debugging number of centroids
     def train_(self, optimizer, epochs, times, train_data, bounding_box, metric,
                number_of_centroids,
                latent_size,
@@ -178,7 +178,7 @@ class Teacher(nn.Module):
                scale_flag=False,
                bound_for_saving=6000):
         """
-            Train the teacher model
+            Train the clustering model
 
             Parameters:
                 optimizer: optimizer to be used
@@ -192,8 +192,8 @@ class Teacher(nn.Module):
                 bound_for_saving: bound for saving the data
                 bounding_box (list[list]): list of [min, max] limits for each coordinate
         """
-        print("="*20)
-        print("Training Teacher Model")
+        print("=" * 20)
+        print("Training Clustering Model")
         p_times = epochs // times  # print times
         y_prep = train_data
         num = 0
@@ -225,8 +225,8 @@ class Teacher(nn.Module):
             dim = y_pred.shape[1]
             # add pump
             if epoch % f_clk == 0 and epoch != 0:
-                if  scale_flag:
-                    scale = len(self.data) 
+                if scale_flag:
+                    scale = len(self.data)
                 y_pred_std = torch.randn(y_pred.shape) * memory[-1] * scale * delta
                 y_pred_std = y_pred_std.to(y_pred.device)
                 y_pred = y_pred + y_pred_std
@@ -240,10 +240,9 @@ class Teacher(nn.Module):
                 reg_latent = RegLatent(self.z_l)  # regularize latent space
                 reg_latent_array.append(reg_latent.item())  # save reg_latent
 
-            #print("y_pred device is: ", y_pred.device)
-            #print("y device is: ", y.device)
+            # print("y_pred device is: ", y_pred.device)
+            # print("y device is: ", y.device)
             e = loss_functional(y_pred, y, metric)
-            #e.requires_grad = True
 
             F, z = e.min(1)  # get energy and latent
             div = torch.mean(F).item()  # get average energy
@@ -254,23 +253,20 @@ class Teacher(nn.Module):
             for i in range(self.n_centroids):
                 for j in range(self.n_centroids):
                     if i != j:
-                        F_r[i, j] = torch.max(torch.abs( centroids[i] - centroids[j]))
+                        F_r[i, j] = torch.max(torch.abs(centroids[i] - centroids[j]))
             # if 1 centroid is near another i wanna penaliize it
-            cost = torch.mean(abs(F)) + alpha* reg_proj + beta * reg_latent  # add regularizers
+            cost = torch.mean(abs(F)) + alpha * reg_proj + beta * reg_latent  # add regularizers
 
-
-            #cost = torch.mean(F) + 10*alpha*len(y) * reg_proj + beta * reg_latent  # add regularizers
             # i wanna penalize small F_r, the smaller the more penalized
-            
+
             fr = torch.zeros(1)
             for i in range(self.n_centroids):
                 for j in range(self.n_centroids):
                     if i != j:
-                        fr += 1/F_r[i, j]
-            f_rep =  gamma * 0.5*torch.sum(fr) * dim
+                        fr += 1 / F_r[i, j]
+            f_rep = gamma * 0.5 * torch.sum(fr) * dim
             cost += f_rep
 
-            #cost -= len(y)/10 * 0.5*torch.sum(F_r) 
             cost_array.append(cost.item())  # save cost
 
             # backward
@@ -280,7 +276,7 @@ class Teacher(nn.Module):
             if cost < best_cost:
                 best_cost = cost
                 best_model_state = deepcopy(self.state_dict())
-                best_outputs = y_pred
+                best_centroids = y_pred
                 best_z = z
                 best_lat = self.z_l
                 best_epoch = epoch
@@ -288,28 +284,28 @@ class Teacher(nn.Module):
                 p_p.append(y_pred)
                 p_c.append(cost)
             if (epoch + 1) % p_times == 0:
-                print("="*20)
-                #print("Outputs: ", y_pred)
-                #print("torch.mean(F): ", torch.mean(F).item())
-                #print("reg_proj: ", alpha*reg_proj.item())
-                #print("reg_latent: ", beta * reg_latent.item())
-                #print("Repulsive: ", f_rep.item())
-            
+                print("=" * 20)
+                # print("Centroids: ", y_pred)
+                # print("torch.mean(F): ", torch.mean(F).item())
+                # print("reg_proj: ", alpha*reg_proj.item())
+                # print("reg_latent: ", beta * reg_latent.item())
+                # print("Repulsive: ", f_rep.item())
+
                 # print
                 print("Epoch: {}/{}.. \n".format(epoch + 1, epochs),
                       "Training loss: {:.5f}.. \n".format(cost.item()),
                       "torch.mean(F): {:.5f}.. \n".format(div),
-                      "Reg Proj: {:.5f}.. \n".format(alpha*reg_proj.item()),
-                      "Reg Latent: {:.5f}.. \n".format(beta*reg_latent.item()),
+                      "Reg Proj: {:.5f}.. \n".format(alpha * reg_proj.item()),
+                      "Reg Latent: {:.5f}.. \n".format(beta * reg_latent.item()),
                       "Repulsive: {:.5f}.. \n".format(f_rep.item()),
-                      "Memory: {:.5f}.. \n".format(memory[-1] *  delta),
-                      "Memory: {:.5f}.. \n".format( div *  delta),
+                      "Memory: {:.5f}.. \n".format(memory[-1] * delta),
+                      "Memory: {:.5f}.. \n".format(div * delta),
                       "Output: \n", y_pred.cpu().detach().numpy(),
-                )
+                      )
 
         # Store the training variables to the model.
         self.best_model_state = best_model_state
-        self.best_outputs = best_outputs
+        self.best_centroids = best_centroids
         self.best_z = best_z
         self.best_lat = best_lat
         self.best_epoch = best_epoch
@@ -321,10 +317,7 @@ class Teacher(nn.Module):
         self.cost_array = cost_array
 
 
-# Backwards compatibility.
-LVGEBM = Teacher
-
-class Student(nn.Module):
+class Critic(nn.Module):
     """
         Voronoi Energy Based Model
         
@@ -339,8 +332,9 @@ class Student(nn.Module):
         Returns:
             forward: predicted energy
     """
+
     def __init__(self, n_centroids, input_dim, output_dim, width, depth):
-        super(Student, self).__init__()
+        super(Critic, self).__init__()
         self.n_centroids = n_centroids
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -358,7 +352,7 @@ class Student(nn.Module):
                 layers.append(nn.ReLU())
 
         self.predictor = nn.Sequential(*layers)
-        
+
         self.predictor_before = nn.Sequential(
             nn.Linear(input_dim, 100),
             nn.ReLU(),
@@ -383,10 +377,10 @@ class Student(nn.Module):
                device,
                qp,
                F_ps,
-               times = 10
+               times=10
                ):
         """
-            Train the student model
+            Train the critic model
 
             Parameters:
                 optimizer: optimizer to be used
@@ -395,10 +389,8 @@ class Student(nn.Module):
                 qp: qp points
                 F_ps: ???
         """
-        print("="*20)
-        print("Training Student Model")
-        F_l = []
-        z_l = []
+        print("=" * 20)
+        print("Training Critic Model")
         cost_l = []
         cost_ll = []
         qp = qp if torch.is_tensor(qp) else torch.tensor(qp)
@@ -406,7 +398,6 @@ class Student(nn.Module):
 
         ce = nn.CrossEntropyLoss()
         acc_l = []
-        l_ce = []
         es = []
         best_vor_cost = torch.inf
         best_vor_model_state = None
@@ -416,17 +407,10 @@ class Student(nn.Module):
             # get outputs
             outputs = self(qp)
             # pass outputs through a hard arg max
-            F, z = outputs.min(1)
             F_ps_m, z_ps_m = F_ps.min(1)
             # send to device
-            F_ps_m = F_ps_m.to(device)
             z_ps_m = z_ps_m.to(device)
-            # make values of z_ps_m to be round to nearest integer
-            r_z = torch.round(z_ps_m)
             # get loss
-            alpha = 100
-            beta = 1000
-            z = z.float()
             z_ = outputs
             # make z_ float
             z_ = z_.float()
@@ -483,7 +467,3 @@ class Student(nn.Module):
         # add stars to the plot points
         ax1.scatter(self.es, self.acc_l, c='r', s=100, marker='*')
         ax2.scatter(self.es, cost_ll_log, c='royalblue', s=100, marker='*')
-
-
-# Backwards compatibility.
-Voronoi = Student
