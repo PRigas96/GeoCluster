@@ -454,9 +454,12 @@ class Ktree:
                     list: A list of [min, max] pairs for each dimension of the data.
             """
             # The first "dim" columns have the centers, the second "dim" columns have the sizes.
-            size_sup = 2 * np.max(self.data[:, self.ktree.dim:2 * self.ktree.dim])
-            return [[m.floor(min(self.data[:, i] - size_sup)), m.ceil(max(self.data[:, i] + size_sup))]
-                    for i in range(self.ktree.dim)]
+            centers = self.data[:, :self.ktree.dim]
+            sizes = self.data[:, self.ktree.dim:]
+            bounding_box = [[min(centers[:, i] - sizes[:, i]), max(centers[:, i] + sizes[:, i])]
+                            for i in range(self.ktree.dim)]
+            return bounding_box
+           
 
         def create_critic(self, save_path_prefix="", plot=False):
             """
@@ -488,16 +491,17 @@ class Ktree:
             if n_of_centroids == 0:
                 n_of_centroids = 2 ** self.ktree.dim
             dim = self.ktree.clustering_args["dimension"]
-            train_data = torch.from_numpy(self.data).float().to(self.device)
+            if type(self.data) is not torch.Tensor:
+                train_data = torch.from_numpy(self.data).float().to(self.device)
+            else:
+                train_data = self.data.float().to(self.device)
             clustering = ClusteringLS(train_data,
                                       n_of_centroids,
-                                      dim,
-                                      self.ktree.metric,
-                                      self.index,
-                                      self.parent,
-                                      self.ktree.dim)
+                                      dim)
 
-            clustering.fit(20,10)
+            epochs = self.ktree.clustering_args["epochs"]
+            pre_processing = self.ktree.clustering_args["pre_processing"]
+            clustering.fit(epochs,pre_processing)
             # Recalculate best_z indices since clustering.best_z is fuzzy from training.
             centroids = clustering.centroids
             self.best_z = clustering.labels

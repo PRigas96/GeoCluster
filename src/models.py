@@ -443,11 +443,12 @@ class ClusteringLS:
         return data_points
 
     def fit(self, n_iter, n_trials=10):
-        self.data_points = self.get_points_from_emb(self.data, self.dim)
+        self.data_points = self.get_points_from_emb()
         # initialize using kmeans++ greedy
-        centroids = self.kmeans_pp_greedy(
-            self.data, self.k, self.dist_function, self.dim, n_trials=n_trials
-        )
+        # centroids = self.kmeans_pp_greedy(
+        #     self.data, self.n_clusters, self.dist_function, self.dim, n_trials=n_trials
+        # )
+        centroids = self.kmeans_pp_greedy(n_trials=n_trials)
         # get initial divergence
         dist_matrix = get_dist_matrix_ls(self.data, centroids, self.dist_function)
         div = torch.sum(torch.min(dist_matrix, dim=1).values)
@@ -460,7 +461,7 @@ class ClusteringLS:
             # get the labels
             labels = torch.argmin(dist_matrix, dim=1)
             # update the centroids
-            for j in range(self.k):
+            for j in range(self.n_clusters):
                 dp = self.data_points[labels == j]
                 centroids[j][0] = torch.mean(torch.concatenate([dp[:, 0], dp[:, 2]]))
                 centroids[j][1] = torch.mean(torch.concatenate([dp[:, 1], dp[:, 3]]))
