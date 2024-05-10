@@ -7,7 +7,7 @@ from src.utils.embeddings import Reg, RegLatent, loss_functional
 import matplotlib.pyplot as plt
 from copy import deepcopy
 import math as m
-from src.metrics import get_dist_matrix_ls
+from src.metrics import get_dist_matrix_ls, compute_distances_2d, compute_distances_3d
 
 
 class Clustering(nn.Module):
@@ -321,7 +321,7 @@ class ClusteringLS:
         self.data = data
         self.n_clusters = n_clusters
         self.dim = dim
-        self.dist_function = dist_function
+        self.dist_function = compute_distances_2d if dim == 2 else compute_distances_3d
 
     def kmeans_pp_greedy(
         self,
