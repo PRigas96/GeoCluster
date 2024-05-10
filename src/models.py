@@ -317,11 +317,12 @@ class Clustering(nn.Module):
         self.cost_array = cost_array
 
 class ClusteringLS:
-    def __init__(self, data, n_clusters, dim, dist_function):
+    def __init__(self, data, n_clusters, dim):
         self.data = data
         self.n_clusters = n_clusters
         self.dim = dim
         self.dist_function = compute_distances_2d if dim == 2 else compute_distances_3d
+        self.labels = None
 
     def kmeans_pp_greedy(
         self,
@@ -470,6 +471,7 @@ class ClusteringLS:
             # get the divergence
             div = torch.sum(torch.min(dist_matrix, dim=1).values)
             print(f"Iteration {i+1}, divergence: {div}")
+        self.labels = labels
         self.centroids = centroids
 
     def predict(self, centroids):

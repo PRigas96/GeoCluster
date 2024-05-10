@@ -487,81 +487,33 @@ class Ktree:
             print(f"Creating clustering for node {self.index} with {n_of_centroids} centroids.")
             if n_of_centroids == 0:
                 n_of_centroids = 2 ** self.ktree.dim
+            dim = self.ktree.clustering_args["dimension"]
+            train_data = torch.from_numpy(self.data).float().to(self.device)
+            clustering = ClusteringLS(train_data,
+                                      n_of_centroids,
+                                      dim,
+                                      self.ktree.metric,
+                                      self.index,
+                                      self.parent,
+                                      self.ktree.dim)
 
-            encoder_activation = self.ktree.clustering_args["encoder_activation"]
-            encoder_depth = self.ktree.clustering_args["encoder_depth"]
-            predictor_width = self.ktree.clustering_args["predictor_width"]
-            predictor_depth = self.ktree.clustering_args["predictor_depth"]
-            latent_size = len(self.data) // 2
-            clustering = Clustering(n_of_centroids,
-                                    self.ktree.dim,
-                                    encoder_activation,
-                                    encoder_depth,
-                                    predictor_width,
-                                    predictor_depth,
-                                    latent_size,
-                                    self.index,
-                                    self.parent,
-                                    self.ktree.dim).to(self.device)
-            # Populate the optimizer with the model parameters and the learning rate.
-            clustering_args = self.ktree.clustering_args.copy()
-            clustering_args["optimizer"] = torch.optim.Adam(clustering.parameters(), lr=clustering_args["optimizer_lr"])
-            del clustering_args["optimizer_lr"]
-            # Train the clustering model and assign the best state found during training.
-            clustering.train_(train_data=torch.from_numpy(self.data).float().to(self.device),
-                              metric=self.ktree.metric, bounding_box=bounding_box, **clustering_args)
-            clustering.load_state_dict(clustering.best_model_state)
-
-            # Save the model and some training results.
-            if save_path_prefix != "":
-                # Save best model state to .pt format.
-                torch.save(clustering.best_model_state, f"{save_path_prefix}_clustering_config.pt")
-                print(f"Saved clustering config to {save_path_prefix}_clustering_config.pt")
-
-                # Save training results to .npy format.
-                clustering_results = {
-                    "best_model_state": clustering.best_model_state,
-                    "best_centroids": clustering.best_centroids,
-                    "best_z": clustering.best_z,
-                    "best_lat": clustering.best_lat,
-                    "best_epoch": clustering.best_epoch,
-                    "p_p": clustering.p_p,
-                    "p_c": clustering.p_c,
-                    "reg_proj_array": clustering.reg_proj_array,
-                    "reg_latent_array": clustering.reg_latent_array,
-                    "memory": clustering.memory,
-                    "cost_array": clustering.cost_array
-                }
-                np.save(f"{save_path_prefix}_clustering_training_results.npy", clustering_results)
-                print(f"Saved clustering training results to {save_path_prefix}_clustering_training_results.npy")
-
-            # Plot training results.
-            if plot:
-                # Plot the Amplitude demodulation of the signal (costs array).
-                signal = clustering.cost_array
-                upper_signal, lower_signal, filtered_signal = pt.AM_dem(signal, fc=0.4 * len(signal),
-                                                                        fs=2 * len(signal))
-                pt.plot_AM_dem(upper_signal, lower_signal, filtered_signal, signal, clustering.best_epoch)
-                # Plot the best model with the best centroids.
-                manifold = pt.createManifold(clustering, clustering.best_centroids.cpu(), self.ktree.metric,
-                                             x_lim=bounding_box[0], y_lim=bounding_box[1])
-                manifold = manifold.cpu().detach().numpy()
-                pt.plotManifold(self.data, manifold, clustering.best_centroids.cpu(), bounding_box[0], bounding_box[1])
-                plt.show()
-
+            clustering.fit(20,10)
             # Recalculate best_z indices since clustering.best_z is fuzzy from training.
-            e = loss_functional(clustering.best_centroids, torch.from_numpy(self.data).float().to(self.device),
-                                self.ktree.metric)
-            _, self.best_z = e.min(1)
+            centroids = clustering.centroids
+            self.best_z = clustering.labels
+            # e = loss_functional(clustering.best_centroids, torch.from_numpy(self.data).float().to(self.device),
+            #                     self.ktree.metric)
+            # _, self.best_z = e.min(1)
+
             # Keep only the centroids that appear in the data predictions.
             # Also update the best_z indices to index only the kept centroids
             # e.g. convert (1, 0, 3) to (1, 0, 2); since centroid 2 is missing we count index 3 as 2.
             # Do so using the inverse indexing tensor of torch.unique().
-            best_z_unique, self.best_z = torch.unique(self.best_z, return_inverse=True)
-            centroids = clustering.best_centroids[best_z_unique]
+            # best_z_unique, self.best_z = torch.unique(self.best_z, return_inverse=True)
+            # centroids = clustering.best_centroids[best_z_unique]
             n_of_centroids = len(centroids)
             # Finally store the regularised projection from the best epoch.
-            self.best_reg = clustering.reg_proj_array[clustering.best_epoch]
+            # self.best_reg = clustering.reg_proj_array[clustering.best_epoch]
 
             # If the division is fully unbalanced, i.e. all data is put into one child, no need for a critic.
             if n_of_centroids == 1:
@@ -576,17 +528,17 @@ class Ktree:
             m_points = np.array(m_points)
             self.un_points = m_points
 
-            # Plot the Uncertainty Area.
-            if plot:
-                # Plot the m points that are in the uncertainty area.
-                fig = plt.figure(figsize=(10, 10))
-                ax = fig.add_subplot(111)
-                ax.scatter(m_points[:, 0], m_points[:, 1], s=20, c='royalblue',
-                           alpha=0.5, marker='*', label='Uncertainty Area')
-                ax.contourf(manifold[:, :, 0], manifold[:, :, 1], manifold[:, :, 2],
-                            levels=200, cmap='viridis', alpha=0.2)
-                plt.legend()
-                plt.show()
+            # # Plot the Uncertainty Area.
+            # if plot:
+            #     # Plot the m points that are in the uncertainty area.
+            #     fig = plt.figure(figsize=(10, 10))
+            #     ax = fig.add_subplot(111)
+            #     ax.scatter(m_points[:, 0], m_points[:, 1], s=20, c='royalblue',
+            #                alpha=0.5, marker='*', label='Uncertainty Area')
+            #     ax.contourf(manifold[:, :, 0], manifold[:, :, 1], manifold[:, :, 2],
+            #                 levels=200, cmap='viridis', alpha=0.2)
+            #     plt.legend()
+            #     plt.show()
 
             """
             Labeling.
@@ -612,19 +564,19 @@ class Ktree:
             self.un_energy = F_ps
 
             # Plot the labels.
-            if plot:
-                # plot qp
-                fig = plt.figure(figsize=(10, 10))
-                ax = fig.add_subplot(111)
-                plt_qp = qp.cpu().detach().numpy()
-                new_labels = F_ps.min(1)[1].cpu().detach().numpy()
-                ax.scatter(plt_qp[:, 0], plt_qp[:, 1], c=new_labels, s=50)
-                # plot best_centroids
-                plt_bc = clustering.best_centroids.cpu().detach().numpy()
-                c = np.linspace(0, plt_bc.shape[0], plt_bc.shape[0])
-                ax.scatter(plt_bc[:, 0], plt_bc[:, 1], c=c, s=200)
-                pt.plot_data_on_manifold(fig, ax, self.data, size=10, limits=bounding_box[0] + bounding_box[1])
-                plt.show()
+            # if plot:
+            #     # plot qp
+            #     fig = plt.figure(figsize=(10, 10))
+            #     ax = fig.add_subplot(111)
+            #     plt_qp = qp.cpu().detach().numpy()
+            #     new_labels = F_ps.min(1)[1].cpu().detach().numpy()
+            #     ax.scatter(plt_qp[:, 0], plt_qp[:, 1], c=new_labels, s=50)
+            #     # plot best_centroids
+            #     plt_bc = clustering.best_centroids.cpu().detach().numpy()
+            #     c = np.linspace(0, plt_bc.shape[0], plt_bc.shape[0])
+            #     ax.scatter(plt_bc[:, 0], plt_bc[:, 1], c=c, s=200)
+            #     pt.plot_data_on_manifold(fig, ax, self.data, size=10, limits=bounding_box[0] + bounding_box[1])
+            #     plt.show()
 
             """
             Critic model.
