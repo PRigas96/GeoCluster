@@ -454,7 +454,8 @@ class Ktree:
                     list: A list of [min, max] pairs for each dimension of the data.
             """
             # The first "dim" columns have the centers, the second "dim" columns have the sizes.
-            size_sup = 2 * np.max(self.data[:, self.ktree.dim:2 * self.ktree.dim])
+            # size_sup = 2 * np.max(self.data[:, self.ktree.dim:2 * self.ktree.dim])
+            size_sup = 2 * torch.max(self.data[:, self.ktree.dim:2 * self.ktree.dim], 0).values
             return [[m.floor(min(self.data[:, i] - size_sup)), m.ceil(max(self.data[:, i] + size_sup))]
                     for i in range(self.ktree.dim)]
 

@@ -28,7 +28,7 @@ def Reg(centroids, bounding_box, node_index, parent_node):
             for centroid_dim in centroid:
                 for boundary in bbox:
                     current_prod = 1
-                    min_dist = np.inf
+                    min_dist = torch.inf # previously np.
                     for boundary_dim in boundary:
                         min_dist = min(min_dist, abs(boundary_dim - centroid_dim))
                         current_prod *= (boundary_dim - centroid_dim) / (abs(boundary_dim - centroid_dim))
@@ -117,7 +117,8 @@ def getUncertaintyArea(centroids, N, M, epsilon, bounding_box):
     n_points = torch.zeros(N ** dim, dim)
     scale = torch.tensor([area[1] - area[0] for area in bounding_box])
     scale = torch.max(scale)
-    spaces = [np.linspace(area[0], area[1], N) for area in bounding_box]
+    # spaces = [np.linspace(area[0], area[1], N) for area in bounding_box]
+    spaces = [torch.linspace(area[0], area[1], N) for area in bounding_box]
     print(f'scale is {scale}')
     for i in range(N ** dim):
         n_points[i] = torch.tensor([spaces[d][(i // (N ** d)) % N] for d in range(dim)])

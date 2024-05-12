@@ -376,13 +376,17 @@ class Ktree:
                 for query_point in query_points:
                     predicted_z = node.critic(query_point)
                     z = predicted_z.argmax()
-                    predicted_nn = node.children[z].query(query_point)
-                    exact_nn = node.query(query_point)
-                    if np.array_equal(predicted_nn, exact_nn):
+                    predicted_nn = node.children[z].query(query_point)[0]
+                    exact_nn = node.query(query_point)[0]
+                    # if np.array_equal(predicted_nn, exact_nn):
+                    # print(np.equal(predicted_nn, exact_nn))
+                    # print(torch.equal(predicted_nn, exact_nn))
+                    if torch.equal(predicted_nn, exact_nn):
                         if node.index not in correct_predictions_per_critic:
                             correct_predictions_per_critic[node.index] = 0
                         else:
                             correct_predictions_per_critic[node.index] += 1
+                print(correct_predictions_per_critic)
                 critic_accuracies[node.index] = correct_predictions_per_critic[node.index] / len(query_points)
 
                 for child in node.children:
@@ -445,6 +449,12 @@ class Ktree:
             self.un_points = None
             self.un_labels = None
             self.un_energy = None
+            # pass data to device
+            if type(self.data) is torch.Tensor:
+                self.data = self.data.to(self.device)
+            else:
+                self.data = torch.from_numpy(self.data).float().to(self.device)
+            
 
         def get_bounding_box(self):
             """
@@ -454,10 +464,11 @@ class Ktree:
                     list: A list of [min, max] pairs for each dimension of the data.
             """
             # The first "dim" columns have the centers, the second "dim" columns have the sizes.
-            centers = self.data[:, :self.ktree.dim]
-            sizes = self.data[:, self.ktree.dim:]
+            centers = self.data[:, :self.ktree.dim].to("cpu")
+            sizes = self.data[:, self.ktree.dim:].to("cpu")
             bounding_box = [[min(centers[:, i] - sizes[:, i]), max(centers[:, i] + sizes[:, i])]
                             for i in range(self.ktree.dim)]
+            bounding_box = torch.tensor(bounding_box).to(self.device)
             return bounding_box
            
 
@@ -682,10 +693,20 @@ class Ktree:
             # print("Data device are: ")
             # print(torch.from_numpy(self.data[0]).double().to(self.device))
             # print("Data[0] device are: ", self.data[0].device)
-            dists = torch.tensor(
-                [self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in
-                 range(len(self.data))])
-            k_smallest_indices = np.argsort(dists)[:k]
+            # prepare data
+            if type(self.data) is not torch.Tensor:
+                dists = torch.tensor(
+                    [self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in
+                     range(len(self.data))])
+            else:
+                dists = torch.tensor(
+                    [self.ktree.metric(self.data[i], query_point) for i in range(len(self.data))])
+            
+            # dists = torch.tensor(
+            #     [self.ktree.metric(torch.from_numpy(self.data[i]).double().to(self.device), query_point) for i in
+            #      range(len(self.data))])
+            # k_smallest_indices = np.argsort(dists)[:k]
+            k_smallest_indices = torch.argsort(dists)[:k]
             k_nearest = [self.data[i] for i in k_smallest_indices]
 
             return k_nearest

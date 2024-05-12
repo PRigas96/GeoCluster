@@ -23,7 +23,9 @@ def random_queries(ktree, n=300, times=4, k=1):
         random_points = torch.zeros(n, ktree.dim)
         space = ktree.root.get_bounding_box()
         for i in range(n):
-            random_points[i] = torch.tensor([np.random.uniform(space[d][0], space[d][1]) for d in range(ktree.dim)])
+            # random_points[i] = torch.tensor([np.random.uniform(space[d][0], space[d][1]) for d in range(ktree.dim)])
+            random_points[i] = torch.tensor([torch.rand(1).to(ktree.device) * (space[d][1] - space[d][0]) + space[d][0] for d in range(ktree.dim)])
+        random_points = random_points.to(ktree.device)
 
         # Run each query and store the number of correct predictions per layer.
         correct_predictions_per_layer = np.zeros(height - 1)
@@ -35,10 +37,12 @@ def random_queries(ktree, n=300, times=4, k=1):
             is_correct = True
             for i, pred in enumerate(predictions_per_layer):
                 n_queries_per_layer[i] += 1
-                if k == 1 and not np.array_equal(pred, k_nearest_neighbors):
+                # print(f'pred is {pred}')
+                # print(f'k_nearest_neighbors is {k_nearest_neighbors}')
+                if k == 1 and not torch.equal(pred[0], k_nearest_neighbors[0]):
                     is_correct = False
                     break
-                elif k > 1 and not any(np.array_equal(pred[0], k_nearest_neighbors[j]) for j in range(k)):
+                elif k > 1 and not any(torch.equal(pred[0], k_nearest_neighbors[j]) for j in range(k)):
                     is_correct = False
                     break
                 correct_predictions_per_layer[i] += 1
@@ -86,10 +90,10 @@ def serialised_queries(ktree, n=500, k=1):
         is_correct = True
         for i, pred in enumerate(predictions_per_layer):
             n_queries_per_layer[i] += 1
-            if k == 1 and not np.array_equal(pred, k_nearest_neighbors):
+            if k == 1 and not torch.equal(pred[0], k_nearest_neighbors[0]):
                 is_correct = False
                 break
-            elif k > 1 and not any(np.array_equal(pred[0], k_nearest_neighbors[j]) for j in range(k)):
+            elif k > 1 and not any(torch.equal(pred[0], k_nearest_neighbors[j]) for j in range(k)):
                 is_correct = False
                 break
             correct_predictions_per_layer[i] += 1

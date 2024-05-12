@@ -244,6 +244,10 @@ def distance_ellipse_2_point(ellipse, point):
 
 
 def compute_distances_2d(segments, centroid):
+    # print devices of segments and of centroids and check if equal
+    # print(segments.device, centroid.device)
+    if len(segments.shape) == 1:
+        segments = segments.unsqueeze(0)
     # Unpack the centroid coordinates
     cx, cy = centroid
     # Unpack the segments
@@ -276,6 +280,8 @@ def compute_distances_2d(segments, centroid):
 
 
 def compute_distances_3d(segments, centroid):
+    if len(segments.shape) == 1:
+        segments = segments.unsqueeze(0)
     # Unpack the centroid coordinates
     cx, cy, cz = centroid
     # Unpack the segments
