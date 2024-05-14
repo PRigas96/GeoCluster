@@ -465,9 +465,13 @@ class Ktree:
             """
             # The first "dim" columns have the centers, the second "dim" columns have the sizes.
             centers = self.data[:, :self.ktree.dim].to("cpu")
-            sizes = self.data[:, self.ktree.dim:].to("cpu")
-            bounding_box = [[min(centers[:, i] - sizes[:, i]), max(centers[:, i] + sizes[:, i])]
-                            for i in range(self.ktree.dim)]
+            sizes = self.data[:,2].to("cpu")
+            bounding_box = [[min(centers[:, i] - sizes), max(centers[:, i] + sizes)] for i in range(self.ktree.dim)]
+            # bounding_box = [[min(centers[:, i] - sizes[:, i]), max(centers[:, i] + sizes[:, i])]
+            #                 for i in range(self.ktree.dim)]
+            if self.ktree.dim == 3:
+                sizes = self.data[:, 3].to("cpu")
+                bounding_box = [[min(centers[:, i] - sizes), max(centers[:, i] + sizes)] for i in range(self.ktree.dim)]
             bounding_box = torch.tensor(bounding_box).to(self.device)
             return bounding_box
            
