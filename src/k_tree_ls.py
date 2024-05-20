@@ -583,19 +583,19 @@ class Ktree:
             self.un_energy = F_ps
 
             # Plot the labels.
-            # if plot:
-            #     # plot qp
-            #     fig = plt.figure(figsize=(10, 10))
-            #     ax = fig.add_subplot(111)
-            #     plt_qp = qp.cpu().detach().numpy()
-            #     new_labels = F_ps.min(1)[1].cpu().detach().numpy()
-            #     ax.scatter(plt_qp[:, 0], plt_qp[:, 1], c=new_labels, s=50)
-            #     # plot best_centroids
-            #     plt_bc = clustering.best_centroids.cpu().detach().numpy()
-            #     c = np.linspace(0, plt_bc.shape[0], plt_bc.shape[0])
-            #     ax.scatter(plt_bc[:, 0], plt_bc[:, 1], c=c, s=200)
-            #     pt.plot_data_on_manifold(fig, ax, self.data, size=10, limits=bounding_box[0] + bounding_box[1])
-            #     plt.show()
+            if plot:
+                # plot qp
+                fig = plt.figure(figsize=(10, 10))
+                ax = fig.add_subplot(111)
+                plt_qp = qp.cpu().detach().numpy()
+                new_labels = F_ps.min(1)[1].cpu().detach().numpy()
+                ax.scatter(plt_qp[:, 0], plt_qp[:, 1], c=new_labels, s=50)
+                # plot best_centroids
+                # plt_bc = clustering.best_centroids.cpu().detach().numpy()
+                # c = np.linspace(0, plt_bc.shape[0], plt_bc.shape[0])
+                ax.scatter(plt_bc[:, 0], plt_bc[:, 1], c=c, s=200)
+                pt.plot_data_on_manifold(fig, ax, self.data, size=10, limits=bounding_box[0] + bounding_box[1])
+                plt.show()
 
             """
             Critic model.

@@ -457,7 +457,13 @@ class ClusteringLS:
         # do the iterations
         for i in range(n_iter):
             # get the distances
+            print("=" * 20)
+            print(f"Starting iteration {i+1}")
+            print("Centroids: ", centroids)
             dist_matrix = get_dist_matrix_ls(self.data, centroids, self.dist_function)
+            # if a column is nan the make it torch.inf
+            if torch.isnan(dist_matrix).any():
+                dist_matrix[torch.isnan(dist_matrix)] = torch.inf
             # get the labels
             labels = torch.argmin(dist_matrix, dim=1)
             # update the centroids
@@ -469,6 +475,17 @@ class ClusteringLS:
                     centroids[j][2] = torch.mean(
                         torch.concatenate([dp[:, 2], dp[:, 4]])
                     )
+
+            to_remove = []
+            for j in range(self.n_clusters):
+                if torch.isnan(centroids[j]).any():
+                    to_remove.append(j)
+            if to_remove is not None:
+                for j in to_remove:
+                    # remove the centroid
+                    centroids = torch.cat([centroids[:j], centroids[j+1:]])
+                    self.n_clusters -= 1
+
             # get the divergence
             div = torch.sum(torch.min(dist_matrix, dim=1).values)
             print(f"Iteration {i+1}, divergence: {div}")
