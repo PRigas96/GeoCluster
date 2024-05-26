@@ -325,3 +325,37 @@ def get_dist_matrix_ls(data, centroids, dist_function):
     for i in range(centroids.shape[0]):
         dist_matrix[:, i] = dist_function(data, centroids[i])
     return dist_matrix
+
+def point_to_edge_distance(point, v1, v2):
+    line_vec = v2 - v1
+    point_vec = point - v1
+    line_len = torch.sum(line_vec**2)
+    if line_len == 0:
+        return torch.sqrt(torch.sum(point_vec**2))
+    t = torch.clamp(torch.dot(point_vec, line_vec) / line_len, 0, 1)
+    projection = v1 + t * line_vec
+    return torch.sqrt(torch.sum((point - projection) ** 2))
+
+
+def point_to_polygon_distance(polygon, point):
+    # Remove any infinity values to handle the case of non-convex polygon with fewer than 10 vertices
+    valid_vertices = polygon[~torch.isinf(polygon).any(dim=1)]
+    num_vertices = valid_vertices.size(0)
+
+    min_distance = torch.tensor(float("inf"))
+
+    for i in range(num_vertices):
+        v1 = valid_vertices[i]
+        v2 = valid_vertices[(i + 1) % num_vertices]
+
+        distance = point_to_edge_distance(point, v1, v2)
+        if distance < min_distance:
+            min_distance = distance
+
+    return min_distance
+
+def get_dist_matrix_pls(data, centroids, dist_function):
+    dist_matrix = torch.zeros(data.shape[0], centroids.shape[0])
+    for i in range(centroids.shape[0]):
+        dist_matrix[:, i] = torch.tensor([dist_function(poly, centroids[i]) for poly in data])
+    return dist_matrix
