@@ -96,9 +96,11 @@ def serialised_queries(ktree, n=500, k=1):
             elif k > 1 and not any(torch.equal(pred[0], k_nearest_neighbors[j]) for j in range(k)):
                 is_correct = False
                 break
-            correct_predictions_per_layer[i] += 1
+            # if pred are equal then acc += 1
+            correct_predictions_per_layer[i] += 1 
 
         for i in range(len(predictions_per_layer), height - 1):
+            # if pred are equal then acc += 1
             correct_predictions_per_layer[i] += int(is_correct)
 
     accuracy_per_layer = correct_predictions_per_layer / n * 100

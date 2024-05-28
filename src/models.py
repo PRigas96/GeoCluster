@@ -315,6 +315,235 @@ class Clustering(nn.Module):
         self.reg_latent_array = reg_latent_array
         self.memory = memory
         self.cost_array = cost_array
+        
+class ClusteringNew:
+    def __init__(self, data, n_clusters, dim, object_id, distance_function=None):
+        self.data = data
+        self.n_clusters = n_clusters
+        self.dim = dim
+        self.dist_function = distance_function
+        if self.dist_function is None:
+            raise ValueError("Distance function should be provided")
+        self.labels = None
+        self.object_id = object_id
+
+    def kmeans_pp_greedy(
+        self,
+        random_state=None,
+        n_trials=None,
+    ):
+        # check parameters
+        if type(self.data) is not torch.Tensor:
+            self.data = torch.tensor(self.data)
+        n_samples, n_features = self.data.shape
+        if self.n_clusters > n_samples:
+            raise ValueError(
+                "n_clusters should be smaller or equal to the number of centroids"
+            )
+        if type(self.n_clusters) is not torch.Tensor:
+            selfn_clusters = torch.tensor(self.n_clusters)
+        if n_trials is None:
+            n_trials = 2 + int(torch.log(self.n_clusters))
+        # set random state
+        if random_state is not None:
+            torch.manual_seed(random_state)
+        # initialize centroids
+        centroids = torch.zeros(self.n_clusters, self.dim)
+        # choose first centroid
+        first_centroid_idx = torch.randint(n_samples, (1,))
+        data_oi = self.data[first_centroid_idx]
+        if self.object_id == "squares":
+            x0, y0, l, theta = data_oi[0]
+            centroids[0] = torch.tensor([x0, y0])
+            centroids[0] += torch.tensor([0.5 * l * torch.cos(theta+torch.pi/4), .5*l * torch.sin(theta+torch.pi/4)])
+        elif self.object_id == "ellipses":
+            a,b,x0,y0 = data_oi[0]
+            centroids[0] = torch.tensor([x0, y0])
+        elif self.object_id == "cuboids":
+            x0, y0, z0, w, h, l, theta, phi, _ = data_oi[0]
+            centroids[0] = torch.tensor([x0, y0, z0])
+            centroids[0] += torch.tensor(
+                [
+                    0.5 * w ,
+                    0.5 * h ,
+                    0.5 * l 
+                ]
+            )
+        else:
+            raise ValueError("Object id should be either squares, ellipses or cuboids")
+
+        # if self.dim == 2:
+        #     x0, y0, l, theta = data_oi[0]
+        #     centroids[0] = torch.tensor([x0, y0])
+        #     centroids[0] += torch.tensor([0.5 * l * torch.cos(theta), l * torch.sin(theta)])
+        # elif self.dim == 3:
+        #     x0, y0, z0, l, theta, phi = data_oi[0]
+        #     centroids[0] = torch.tensor([x0, y0, z0])
+        #     centroids[0] += torch.tensor(
+        #         [
+        #             0.5 * l * torch.sin(theta) * torch.cos(phi),
+        #             0.5 * l * torch.sin(theta) * torch.sin(phi),
+        #             0.5 * l * torch.cos(theta),
+        #         ]
+        #     )
+        # else:
+        #     raise ValueError("dim should be 2 or 3")
+        # create a vector of minus ones of shape (n_samples,)
+        indices = -torch.ones(n_samples)
+        # # init dist matrix
+        # print(f"Data shape: {data.shape}")
+        # print(f"Centroids shape: {centroids.shape}")
+        # print(f"Dist function: {dist_function}")
+
+
+        dist_matrix = loss_functional(self.data, centroids[:1].to(self.data.device), self.dist_function)
+
+        for i in range(1, self.n_clusters):
+            print("=" * 20)
+            print(f"Starting centroid {i+1}")
+            # choose the next centroid
+            freq = torch.zeros(n_trials)
+            for _ in range(n_trials):
+                # choose a centroid with probability proportional to the distance
+                # to the closest centroid
+                dists = torch.min(dist_matrix, dim=1).values
+                probs = dists / torch.sum(dists)
+                next_centroid_idx = torch.multinomial(probs, 1)
+                # update best_dist
+                freq[_] = next_centroid_idx
+            # pick randomly a vlaue from freq
+            idx = torch.randint(n_trials, (1,))
+            next_centroid_idx = freq[idx].int()
+            data_oi = self.data[next_centroid_idx]
+            if self.object_id== "squares":
+                x0, y0, l, theta = data_oi[0]
+                centroids[i] = torch.tensor([x0, y0])
+                centroids[i] += torch.tensor(
+                    [0.5 * l * torch.cos(theta), l * torch.sin(theta)]
+                )
+            elif self.object_id== "ellipses":
+                a,b,x0,y0 = data_oi[0]
+                centroids[i] = torch.tensor([x0, y0])
+            elif self.object_id== "cuboids":
+                x0, y0, z0, l, w, h, theta, phi, _ = data_oi[0]
+                centroids[i] = torch.tensor([x0, y0, z0])
+                centroids[i] += torch.tensor(
+                    [
+                        0.5 * l * torch.sin(theta+torch.pi/4) * torch.cos(phi+torch.pi/4),
+                        0.5 * l * torch.sin(theta+torch.pi/4) * torch.sin(phi+torch.pi/4),
+                        0.5 * l * torch.cos(theta+torch.pi/4),
+                    ]
+                )
+            else:
+                raise ValueError("dim should be 2 or 3")
+            # update dist_matrix
+            dist_matrix = loss_functional(self.data, centroids[: i + 1].to(self.data.device), self.dist_function)
+        return centroids
+
+    def get_points_from_emb(self):
+        """
+        Get the points from the embedding
+
+        Returns
+        -------
+        torch.Tensor
+            The points in the space [x0,y0,x1,y1,...]
+        """
+        data_points = torch.zeros(self.data.shape[0], 2 * self.dim)
+        if self.dim == 2:  # [x0,y0,l,theta]
+            data_points[:, 0] = self.data[:, 0]
+            data_points[:, 1] = self.data[:, 1]
+            data_points[:, 2] = self.data[:, 0] + self.data[:, 2] * torch.cos(self.data[:, 3])
+            data_points[:, 3] = self.data[:, 1] + self.data[:, 2] * torch.sin(self.data[:, 3])
+        elif self.dim == 3:  # [x0,y0,z0,l,theta,phi]
+            data_points[:, 0] = self.data[:, 0]
+            data_points[:, 1] = self.data[:, 1]
+            data_points[:, 2] = self.data[:, 2]
+            data_points[:, 3] = self.data[:, 0] + self.data[:, 3] * torch.sin(
+                self.data[:, 4]
+            ) * torch.cos(self.data[:, 5])
+            data_points[:, 4] = self.data[:, 1] + self.data[:, 3] * torch.sin(
+                self.data[:, 4]
+            ) * torch.sin(self.data[:, 5])
+            data_points[:, 5] = self.data[:, 2] + self.data[:, 3] * torch.cos(self.data[:, 4])
+
+        else:
+            raise ValueError("dim should be 2 or 3")
+        return data_points
+
+    def fit(self, n_iter, n_trials=10):
+        # self.data_points = self.get_points_from_emb()
+        self.data_points = self.data
+        # initialize using kmeans++ greedy
+        # centroids = self.kmeans_pp_greedy(
+        #     self.data, self.n_clusters, self.dist_function, self.dim, n_trials=n_trials
+        # )
+        centroids = self.kmeans_pp_greedy(n_trials=n_trials)
+        # get them to device
+        centroids = centroids.to(self.data.device)
+        # get initial divergence
+        dist_matrix = loss_functional(self.data, centroids, self.dist_function)
+        div = torch.sum(torch.min(dist_matrix, dim=1).values)
+        print(f"Initial divergence: {div}")
+
+        # do the iterations
+        for i in range(n_iter):
+            # get the distances
+            print("=" * 20)
+            print(f"Starting iteration {i+1}")
+            print("Centroids: ", centroids)
+            dist_matrix = loss_functional(self.data, centroids, self.dist_function)
+            # if a column is nan the make it torch.inf
+            if torch.isnan(dist_matrix).any():
+                dist_matrix[torch.isnan(dist_matrix)] = torch.inf
+            # get the labels
+            labels = torch.argmin(dist_matrix, dim=1)
+            # update the centroids
+            for j in range(self.n_clusters):
+                dp = self.data_points[labels == j]
+                if self.object_id == "squares":
+                    centroids[j][0] = torch.mean(dp[:, 0] + 0.5 * dp[:, 2] * torch.cos(dp[:, 3]))
+                    centroids[j][1] = torch.mean(dp[:, 1] + 0.5 * dp[:, 2] * torch.sin(dp[:, 3]))
+                elif self.object_id == "ellipses":
+                    centroids[j][0] = torch.mean(dp[:, 2])
+                    centroids[j][1] = torch.mean(dp[:, 3])
+                elif self.object_id == "cuboids":
+                    centroids[j][0] = torch.mean(dp[:, 0] + 0.5 * dp[:, 3] * torch.sin(dp[:, 4]) * torch.cos(dp[:, 5]))
+                    centroids[j][1] = torch.mean(dp[:, 1] + 0.5 * dp[:, 3] * torch.sin(dp[:, 4]) * torch.sin(dp[:, 5]))
+                    centroids[j][2] = torch.mean(dp[:, 2] + 0.5 * dp[:, 3] * torch.cos(dp[:, 4]))
+                else:
+                    raise ValueError("Object id should be either squares, ellipses or cuboids")
+                # lets plot it
+            # lets plot it 
+            data_p = self.data_points.cpu().detach().numpy()
+            centr = centroids.cpu().detach().numpy()
+ 
+
+            to_remove = []
+            for j in range(self.n_clusters):
+                if torch.isnan(centroids[j]).any():
+                    to_remove.append(j)
+            if to_remove is not None:
+                for j in to_remove:
+                    # remove the centroid
+                    centroids = torch.cat([centroids[:j], centroids[j+1:]])
+                    self.n_clusters -= 1
+
+            # get the divergence
+            div = torch.mean(torch.min(dist_matrix, dim=1).values)
+            print(f"Iteration {i+1}, divergence: {div}")
+        print(f"Final divergence: {div}")
+        self.labels = labels
+        self.centroids = centroids
+
+    def predict(self, centroids):
+        # get the distances
+        dist_matrix = loss_functional(self.data, centroids, self.dist_function)
+        # get the labels
+        labels = torch.argmin(dist_matrix, dim=1)
+        return labels
+
+
 
 class ClusteringLS:
     def __init__(self, data, n_clusters, dim):
@@ -348,7 +577,6 @@ class ClusteringLS:
         centroids = torch.zeros(self.n_clusters, self.dim)
         # choose first centroid
         first_centroid_idx = torch.randint(n_samples, (1,))
-        # print(f"First centroid index: {first_centroid_idx}")
         data_oi = self.data[first_centroid_idx]
         if self.dim == 2:
             x0, y0, l, theta = data_oi[0]

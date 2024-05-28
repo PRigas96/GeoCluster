@@ -127,3 +127,5 @@ dmypy.json
 # Generated models and training results.
 models/*/*/*.pt
 models/*/*/*.npy
+# all models actualy
+models/*/*/

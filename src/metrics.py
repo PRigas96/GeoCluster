@@ -1,7 +1,8 @@
 # save here metric for tests
 import numpy as np
 import torch
-from src.utils.objects import squares, cuboids, ellipses
+from . import ellipses
+from src.utils.objects import squares, cuboids
 
 
 # define Linf() function for a square and a point
@@ -116,7 +117,7 @@ def Linf_array(q, c):
     return e
 
 
-def Linf_3d(cuboid, point):
+def Linf_3d(cuboid_input, point_input):
     """
         Computes the L_inf metric for a cuboid and a point.
 
@@ -128,8 +129,8 @@ def Linf_3d(cuboid, point):
             float: distance between the cuboid and the point,
                 -2 if the point is inside the cuboid
     """
-    cuboid = cuboid if not torch.is_tensor(cuboid) else cuboid.detach().numpy()
-    point = point if not torch.is_tensor(point) else point.detach().numpy()
+    cuboid = cuboid_input if not torch.is_tensor(cuboid_input) else cuboid_input.detach().cpu().numpy()
+    point = point_input if not torch.is_tensor(point_input) else point_input.detach().cpu().numpy()
 
     dx = [0.0, 0.0]
     dy = [0.0, 0.0]
@@ -150,7 +151,7 @@ def Linf_3d(cuboid, point):
     if dx[0] * dx[1] < 0:
         if dy[0] * dy[1] < 0:
             if dz[0] * dz[1] < 0:
-                return -2
+                return 1e-7
             else:
                 distance = min(abs(dz[0]), abs(dz[1]))
         else:
@@ -193,7 +194,7 @@ def Linf_simple(square, q_point):
     return min_dist
 
 
-def distance_ellipse_2_point(ellipse, point):
+def distance_ellipse_2_point(ellipse_input, point_input):
     """
     Computes the distance between an ellipse and a point.
     Parameters:
@@ -203,8 +204,9 @@ def distance_ellipse_2_point(ellipse, point):
     Returns:
         float: distance between the ellipse and the point
     """
-    ellipse = ellipse if not torch.is_tensor(ellipse) else ellipse.detach().numpy()
-    point = point if not torch.is_tensor(point) else point.detach().numpy()
+    ellipse = ellipse_input if not torch.is_tensor(ellipse_input) else ellipse_input.detach().cpu().numpy()
+    point = point_input if not torch.is_tensor(point_input) else point_input.detach().cpu().numpy()
+    # point = point if not torch.is_tensor(point) else point.detach().numpy()
     a = ellipse[0]
     b = ellipse[1]
     ellipse_center_x = ellipse[2]

@@ -70,7 +70,7 @@ def RegLatent(latent):
     return kld
 
 
-def loss_functional(y_hat, y_target, metric):
+def loss_functional(y_target, y_hat, metric):
     """
         Computes the loss functional of the model.
 
